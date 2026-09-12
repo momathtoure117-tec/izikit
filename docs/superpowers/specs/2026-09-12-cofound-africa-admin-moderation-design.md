@@ -34,7 +34,7 @@ statusFilter: 'PUBLISHED' | 'SUSPENDED' | 'DRAFT'   // défaut 'PUBLISHED'
 cursor: string | null
 hasMore: boolean
 loading: boolean
-error: string | null
+error: boolean   // bannière fixe, ne rend jamais err.message — pas besoin de porter le texte
 expandedReasonId: string | null   // id du profil dont le champ raison est ouvert
 reasonDraft: Record<string, string>   // brouillon de raison par profil, survit à un échec de soumission
 actionError: Record<string, string>   // erreur de validation inline par profil (ex. raison trop courte)
@@ -82,7 +82,7 @@ Bouton "Charger plus" si `hasMore`, appelle `load(false)`, désactivé pendant `
 - **Erreur de chargement de liste** : bannière inline (pas un toast) + bouton "Réessayer" (`onClick={() => load(true)}`), distincte de "aucun profil" (`!loading && !error && profiles.length === 0`).
 - **Liste vide** : "Aucun profil ne correspond à ce filtre."
 - **Erreurs PATCH**, switch sur `ApiError.code` :
-  - `VALIDATION_FAILED` → erreur inline sous le champ raison (`actionError[id]`), pas de toast générique.
+  - `VALIDATION_FAILED` → erreur inline sous le champ raison (`actionError[id]`). Ce cas n'a de rendu que pour la suspension (le champ raison n'existe que dans cette branche du tableau) : une réponse `VALIDATION_FAILED` sur une republication n'a aucun endroit où s'afficher. C'est un angle mort accepté du modèle d'erreur — inatteignable en pratique puisque `{status:'PUBLISHED'}` sans `reason` passe toujours la validation serveur — mais à corriger si cet écran gagne un jour une seconde mutation sans raison qui pourrait réellement échouer en validation.
   - `PROFILE_NOT_FOUND` → toast "Ce profil n'existe plus." + retrait de la ligne de `profiles`.
   - Autre `ApiError` (incluant un 429 du rate-limiter admin) → toast avec un message générique fixe (jamais `err.message` brut — même principe que la Phase 1 UI fondateur, pour ne pas exposer de texte serveur non traduit).
   - Erreur réseau (non-`ApiError`) → toast générique.
