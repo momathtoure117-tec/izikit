@@ -30,6 +30,11 @@ import { createWebhookHandler } from '@/lib/server/webhook/handler';
 import { bictorysWebhookProvider } from '@/lib/server/webhook/bictorys';
 import { enqueueOutbox } from '@/lib/server/outbox';
 import { prisma } from '@/lib/server/prisma';
+import {
+  PROFILE_UNLOCK_ORDER_TYPE,
+  PROFILE_UNLOCK_PRICE_FCFA,
+  PROFILE_UNLOCK_CURRENCY,
+} from '@/lib/server/profiles/constants';
 
 export const POST = createWebhookHandler({
   prisma,
@@ -78,6 +83,37 @@ export const POST = createWebhookHandler({
           amount: order.amount,
           currency: order.currency,
         },
+      });
+    }
+
+    // CoFound Africa Phase 1 — grant a ProfileUnlock only when the paid
+    // amount matches the required price. This is the single enforcement
+    // point that stops a tampered client from unlocking a contact by
+    // submitting a cheaper amount to POST /api/orders.
+    const unlockMeta = (order.metadata ?? null) as {
+      type?: string;
+      targetProfileId?: string;
+    } | null;
+    if (
+      unlockMeta?.type === PROFILE_UNLOCK_ORDER_TYPE &&
+      unlockMeta.targetProfileId &&
+      order.userId &&
+      order.amount === PROFILE_UNLOCK_PRICE_FCFA &&
+      order.currency === PROFILE_UNLOCK_CURRENCY
+    ) {
+      await tx.profileUnlock.upsert({
+        where: {
+          unlockerUserId_targetProfileId: {
+            unlockerUserId: order.userId,
+            targetProfileId: unlockMeta.targetProfileId,
+          },
+        },
+        create: {
+          unlockerUserId: order.userId,
+          targetProfileId: unlockMeta.targetProfileId,
+          orderId: order.id,
+        },
+        update: {},
       });
     }
 

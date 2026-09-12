@@ -7,12 +7,14 @@ const update = vi.fn();
 const orderFindFirst = vi.fn();
 const orderUpdate = vi.fn();
 const outboxCreate = vi.fn();
+const profileUnlockUpsert = vi.fn();
 
 const $transaction = vi.fn(async (fn: (tx: unknown) => Promise<unknown>, _opts?: unknown) =>
   fn({
     webhookLog: { findUnique, create, update },
     order: { findFirst: orderFindFirst, update: orderUpdate },
     outboxEvent: { create: outboxCreate },
+    profileUnlock: { upsert: profileUnlockUpsert },
   }),
 );
 
@@ -31,6 +33,7 @@ beforeEach(() => {
   orderFindFirst.mockReset();
   orderUpdate.mockReset();
   outboxCreate.mockReset();
+  profileUnlockUpsert.mockReset();
 });
 
 afterEach(() => {
@@ -115,5 +118,59 @@ describe('POST /api/webhooks/bictorys', () => {
     const mod = (await import('./route')) as { runtime?: string; dynamic?: string };
     expect(mod.runtime).toBe('nodejs');
     expect(mod.dynamic).toBe('force-dynamic');
+  });
+
+  it('onPaid creates a ProfileUnlock when the order metadata matches PROFILE_UNLOCK at the correct price', async () => {
+    findUnique.mockResolvedValueOnce(null);
+    orderFindFirst.mockResolvedValueOnce({
+      id: 'o1',
+      userId: 'u1',
+      customerEmail: null,
+      amount: 500,
+      currency: 'XOF',
+      metadata: { type: 'PROFILE_UNLOCK', targetProfileId: 'p1' },
+    });
+    profileUnlockUpsert.mockResolvedValueOnce({ id: 'pu1' });
+    const { POST } = await import('./route');
+    const { req } = bictorysFixtureRequest({ status: 'succeeded' });
+    await POST(req);
+    expect(profileUnlockUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { unlockerUserId_targetProfileId: { unlockerUserId: 'u1', targetProfileId: 'p1' } },
+        create: { unlockerUserId: 'u1', targetProfileId: 'p1', orderId: 'o1' },
+      }),
+    );
+  });
+
+  it('onPaid does NOT create a ProfileUnlock when the paid amount is below the required price', async () => {
+    findUnique.mockResolvedValueOnce(null);
+    orderFindFirst.mockResolvedValueOnce({
+      id: 'o1',
+      userId: 'u1',
+      customerEmail: null,
+      amount: 1,
+      currency: 'XOF',
+      metadata: { type: 'PROFILE_UNLOCK', targetProfileId: 'p1' },
+    });
+    const { POST } = await import('./route');
+    const { req } = bictorysFixtureRequest({ status: 'succeeded' });
+    await POST(req);
+    expect(profileUnlockUpsert).not.toHaveBeenCalled();
+  });
+
+  it('onPaid does NOT create a ProfileUnlock for regular (non-unlock) orders', async () => {
+    findUnique.mockResolvedValueOnce(null);
+    orderFindFirst.mockResolvedValueOnce({
+      id: 'o1',
+      userId: 'u1',
+      customerEmail: 'a@b.com',
+      amount: 1000,
+      currency: 'XOF',
+      metadata: null,
+    });
+    const { POST } = await import('./route');
+    const { req } = bictorysFixtureRequest({ status: 'succeeded' });
+    await POST(req);
+    expect(profileUnlockUpsert).not.toHaveBeenCalled();
   });
 });
