@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { readPendingUnlock, clearPendingUnlock } from '@/lib/pending-unlock';
+import { readPendingUnlock } from '@/lib/pending-unlock';
 
 export default function OrderFailedPage() {
   const params = useParams<{ id: string }>();
@@ -13,7 +13,6 @@ export default function OrderFailedPage() {
     const pending = readPendingUnlock(params.id);
     if (pending) {
       setTargetProfileId(pending.targetProfileId);
-      clearPendingUnlock();
     }
   }, [params.id]);
 

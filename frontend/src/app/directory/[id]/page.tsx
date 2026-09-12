@@ -72,7 +72,7 @@ export default function ProfileDetailPage() {
             toast('Le paiement a échoué, réessaie.', 'error');
             break;
           default:
-            toast(err.message, 'error');
+            toast('Une erreur est survenue, réessaie.', 'error');
         }
       } else {
         toast('Erreur réseau, réessaie.', 'error');
@@ -83,7 +83,14 @@ export default function ProfileDetailPage() {
 
   if (!user) return null;
 
-  if (loading) {
+  // `loading`'s initial value is computed once at mount from the FIRST
+  // `skip`; when `useUser()` resolves, the render where `skip` flips still
+  // shows the OLD `loading`/`data`/`error` because `useApi`'s fetch effect
+  // hasn't run yet. `pending` recomputes "nothing to show yet" every render
+  // instead of trusting that transitional state.
+  const pending = loading || (!data && !error);
+
+  if (pending) {
     return (
       <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-4">
         <p className="text-sm text-gray-600">Chargement…</p>
@@ -143,6 +150,7 @@ export default function ProfileDetailPage() {
         {p.isOwner ? (
           <>
             <p className="text-sm text-gray-500">C&apos;est votre profil.</p>
+            {p.contactEmail && <p className="font-medium">{p.contactEmail}</p>}
             <Link href="/profile" className="mt-2 inline-block text-sm underline">
               Modifier mon profil
             </Link>

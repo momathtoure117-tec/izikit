@@ -48,9 +48,18 @@ export default function DirectoryPage() {
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [cursor, setCursor] = useState<string | null>(null);
   const [items, setItems] = useState<ProfileCard[]>([]);
+  const [draftSector, setDraftSector] = useState('');
+  const [draftCity, setDraftCity] = useState('');
+  const [draftSkill, setDraftSkill] = useState('');
 
   const path = buildDirectoryPath(filters, cursor);
-  const { data, loading } = useApi<DirectoryPageResult>(path, { skip: !user });
+  const { data, loading, error, refresh } = useApi<DirectoryPageResult>(path, { skip: !user });
+  // `loading`'s initial value is computed once at mount from the FIRST
+  // `skip`; when `useUser()` resolves, the render where `skip` flips still
+  // shows the OLD `loading`/`data`/`error` because `useApi`'s fetch effect
+  // hasn't run yet. `pending` recomputes "nothing to show yet" every render
+  // instead of trusting that transitional state.
+  const pending = loading || (!data && !error);
 
   // `useApi`'s `data` lags one render/effect-cycle behind a `path` change
   // (its `useState` initializer only runs once at mount; `setData` only
@@ -65,6 +74,7 @@ export default function DirectoryPage() {
   useEffect(() => {
     if (!data) return;
     setItems((prev) => (appendModeRef.current ? [...prev, ...data.items] : data.items));
+    appendModeRef.current = false;
   }, [data]);
 
   function applyFilters(next: Partial<Filters>) {
@@ -78,6 +88,15 @@ export default function DirectoryPage() {
     appendModeRef.current = true;
     setCursor(data.nextCursor);
   }
+
+  // Debounce the three free-text filters — without this, every keystroke
+  // fires an authenticated request against the directory endpoint.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      applyFilters({ sector: draftSector, city: draftCity, skill: draftSkill });
+    }, 300);
+    return () => clearTimeout(t);
+  }, [draftSector, draftCity, draftSkill]);
 
   if (!user) return null;
 
@@ -102,20 +121,23 @@ export default function DirectoryPage() {
         <div className="flex flex-col gap-3 rounded-md border border-gray-200 bg-gray-50 p-4">
           <input
             placeholder="Secteur"
-            value={filters.sector}
-            onChange={(e) => applyFilters({ sector: e.target.value })}
+            aria-label="Secteur"
+            value={draftSector}
+            onChange={(e) => setDraftSector(e.target.value)}
             className="rounded-md border border-gray-300 px-3 py-2 text-sm"
           />
           <input
             placeholder="Ville"
-            value={filters.city}
-            onChange={(e) => applyFilters({ city: e.target.value })}
+            aria-label="Ville"
+            value={draftCity}
+            onChange={(e) => setDraftCity(e.target.value)}
             className="rounded-md border border-gray-300 px-3 py-2 text-sm"
           />
           <input
             placeholder="Compétence"
-            value={filters.skill}
-            onChange={(e) => applyFilters({ skill: e.target.value })}
+            aria-label="Compétence"
+            value={draftSkill}
+            onChange={(e) => setDraftSkill(e.target.value)}
             className="rounded-md border border-gray-300 px-3 py-2 text-sm"
           />
           <div className="flex gap-2 text-sm">
@@ -145,9 +167,18 @@ export default function DirectoryPage() {
         </div>
       )}
 
-      {loading && items.length === 0 && <p className="text-sm text-gray-600">Chargement…</p>}
+      {pending && items.length === 0 && <p className="text-sm text-gray-600">Chargement…</p>}
 
-      {!loading && items.length === 0 && (
+      {!pending && error && items.length === 0 && (
+        <div className="flex flex-col gap-2 text-sm text-red-600">
+          <p>Impossible de charger l&apos;annuaire pour le moment.</p>
+          <button type="button" onClick={() => void refresh()} className="self-start underline">
+            Réessayer
+          </button>
+        </div>
+      )}
+
+      {!pending && !error && items.length === 0 && (
         <p className="text-sm text-gray-600">Aucun profil ne correspond à ces critères.</p>
       )}
 

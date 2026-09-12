@@ -1,10 +1,11 @@
+import { COOKIE_PREFIX } from '@/lib/constants';
+
 // Bridges the payment-redirect round-trip: POST /api/orders returns a
 // paymentUrl on Bictorys' own hosted-checkout domain, so React state can't
-// survive the trip — only `localStorage` can (same pattern `lib/api.ts`
-// already uses for the CSRF token). The profile detail page saves the pair
-// right before redirecting; the /orders/[id]/success|failed pages read it
-// back to link to the profile that was being unlocked.
-const STORAGE_KEY = 'app-pending-unlock';
+// survive the trip — only `localStorage` can. The profile detail page saves
+// the pair right before redirecting; the /orders/[id]/success|failed pages
+// read it back to link to the profile that was being unlocked.
+const STORAGE_KEY = `${COOKIE_PREFIX}-pending-unlock`;
 
 export interface PendingUnlock {
   orderId: string;

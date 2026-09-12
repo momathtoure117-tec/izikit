@@ -92,7 +92,7 @@ export default function ProfilePage() {
           sector,
           skills,
           hasIdea,
-          ideaPitch: ideaPitch || undefined,
+          ideaPitch: hasIdea ? ideaPitch : '',
           availableToCofound,
           externalLink: externalLink || undefined,
         },
@@ -111,6 +111,7 @@ export default function ProfilePage() {
           if (typeof key === 'string') next[key] = issue.message;
         }
         setFieldErrors(next);
+        toast('Merci de corriger les champs indiqués en rouge.', 'error');
       } else {
         toast(err instanceof Error ? err.message : 'Erreur inconnue', 'error');
       }
@@ -142,8 +143,8 @@ export default function ProfilePage() {
 
       {status === 'SUSPENDED' && (
         <p className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          Votre profil a été suspendu par un modérateur. Vous pouvez continuer à le modifier, mais
-          il ne sera republié qu&apos;après validation.
+          Ton profil a été suspendu par un modérateur. Tu peux continuer à le modifier, mais il ne
+          sera republié qu&apos;après validation.
         </p>
       )}
 
@@ -191,6 +192,7 @@ export default function ProfilePage() {
                   key={s}
                   type="button"
                   onClick={() => removeSkill(s)}
+                  aria-label={`Retirer ${s}`}
                   className="rounded-full border border-gray-300 px-3 py-1 text-xs"
                 >
                   {s} ×
@@ -210,6 +212,7 @@ export default function ProfilePage() {
             placeholder="Tape une compétence puis Entrée"
             className="rounded-md border border-gray-300 px-3 py-2"
           />
+          {fieldErrors.skills && <span className="text-xs text-red-600">{fieldErrors.skills}</span>}
         </div>
 
         <label className="flex items-center gap-2 text-sm">
@@ -226,6 +229,9 @@ export default function ProfilePage() {
               onChange={(e) => setIdeaPitch(e.target.value)}
               className="rounded-md border border-gray-300 px-3 py-2"
             />
+            {fieldErrors.ideaPitch && (
+              <span className="text-xs text-red-600">{fieldErrors.ideaPitch}</span>
+            )}
           </label>
         )}
 
@@ -246,6 +252,9 @@ export default function ProfilePage() {
             placeholder="https://…"
             className="rounded-md border border-gray-300 px-3 py-2"
           />
+          {fieldErrors.externalLink && (
+            <span className="text-xs text-red-600">{fieldErrors.externalLink}</span>
+          )}
         </label>
 
         <button

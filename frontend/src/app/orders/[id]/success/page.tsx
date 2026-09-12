@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { readPendingUnlock, clearPendingUnlock } from '@/lib/pending-unlock';
+import { readPendingUnlock } from '@/lib/pending-unlock';
 
 export default function OrderSuccessPage() {
   const params = useParams<{ id: string }>();
@@ -13,7 +13,6 @@ export default function OrderSuccessPage() {
     const pending = readPendingUnlock(params.id);
     if (pending) {
       setTargetProfileId(pending.targetProfileId);
-      clearPendingUnlock();
     }
   }, [params.id]);
 
@@ -35,7 +34,7 @@ export default function OrderSuccessPage() {
         </>
       ) : (
         <>
-          <p className="text-sm text-gray-600">Votre paiement a bien été confirmé.</p>
+          <p className="text-sm text-gray-600">Ton paiement a bien été confirmé.</p>
           <Link href="/directory" className="mt-4 inline-block text-sm underline">
             Retour à l&apos;annuaire
           </Link>
