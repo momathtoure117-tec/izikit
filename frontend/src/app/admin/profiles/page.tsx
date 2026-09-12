@@ -70,6 +70,11 @@ export default function AdminProfilesPage() {
   async function load(reset: boolean) {
     setLoading(true);
     setError(false);
+    if (reset) {
+      setProfiles([]);
+      setCursor(null);
+      setHasMore(false);
+    }
     try {
       const params = new URLSearchParams();
       params.set('status', statusFilter);
@@ -211,124 +216,134 @@ export default function AdminProfilesPage() {
       )}
 
       {profiles.length > 0 && (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-200 text-left text-xs uppercase tracking-wider text-gray-500">
-              <th className="py-2">Email</th>
-              <th>Bio</th>
-              <th>Ville</th>
-              <th>Secteur</th>
-              <th>Compétences</th>
-              <th>Rôle</th>
-              <th>Statut</th>
-              <th>Créé le</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {profiles.map((p) => (
-              <tr key={p.id} className="border-b border-gray-100 align-top">
-                <td className="py-2 font-medium">{p.user.email}</td>
-                <td className="max-w-xs text-gray-600">
-                  <span className="line-clamp-2">{p.bio}</span>
-                </td>
-                <td className="text-gray-600">{p.city}</td>
-                <td className="text-gray-600">{p.sector}</td>
-                <td>
-                  <div className="flex flex-wrap gap-1">
-                    {p.skills.map((s) => (
-                      <span key={s} className="rounded-full bg-gray-100 px-2 py-0.5 text-xs">
-                        {s}
-                      </span>
-                    ))}
-                  </div>
-                </td>
-                <td>
-                  <div className="flex flex-col gap-1">
-                    {p.hasIdea && (
-                      <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
-                        A une idée
-                      </span>
-                    )}
-                    {p.availableToCofound && (
-                      <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">
-                        Dispo pour co-fonder
-                      </span>
-                    )}
-                  </div>
-                </td>
-                <td>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs ${
-                      p.status === 'PUBLISHED'
-                        ? 'bg-green-100 text-green-700'
-                        : p.status === 'SUSPENDED'
-                          ? 'bg-red-100 text-red-700'
-                          : 'bg-gray-100 text-gray-700'
-                    }`}
-                  >
-                    {STATUS_LABEL[p.status]}
-                  </span>
-                </td>
-                <td className="text-gray-500">{new Date(p.createdAt).toLocaleDateString()}</td>
-                <td className="min-w-[220px]">
-                  {p.status === 'PUBLISHED' &&
-                    (expandedReasonId === p.id ? (
-                      <div className="flex flex-col gap-1">
-                        <textarea
-                          rows={2}
-                          value={reasonDraft[p.id] ?? ''}
-                          onChange={(e) =>
-                            setReasonDraft((prev) => ({ ...prev, [p.id]: e.target.value }))
-                          }
-                          placeholder="Raison de la suspension"
-                          className="rounded-md border border-gray-300 px-2 py-1 text-xs"
-                        />
-                        {actionError[p.id] && (
-                          <span className="text-xs text-red-600">{actionError[p.id]}</span>
-                        )}
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => confirmSuspend(p.id)}
-                            disabled={submitting[p.id]}
-                            className="rounded-md bg-red-600 px-3 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                          >
-                            {submitting[p.id] ? 'Envoi…' : 'Confirmer'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => cancelSuspend(p.id)}
-                            className="rounded-md border border-gray-300 px-3 py-1 text-xs hover:bg-gray-50"
-                          >
-                            Annuler
-                          </button>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-200 text-left text-xs uppercase tracking-wider text-gray-500">
+                <th className="py-2">Email</th>
+                <th>Bio</th>
+                <th>Ville</th>
+                <th>Secteur</th>
+                <th>Compétences</th>
+                <th>Rôle</th>
+                <th>Statut</th>
+                <th>Créé le</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {profiles.map((p) => (
+                <tr key={p.id} className="border-b border-gray-100 align-top">
+                  <td className="py-2 font-medium">{p.user.email}</td>
+                  <td className="max-w-xs text-gray-600">
+                    <span className="line-clamp-2">{p.bio}</span>
+                  </td>
+                  <td className="text-gray-600">{p.city}</td>
+                  <td className="text-gray-600">{p.sector}</td>
+                  <td>
+                    <div className="flex flex-wrap gap-1">
+                      {p.skills.map((s) => (
+                        <span key={s} className="rounded-full bg-gray-100 px-2 py-0.5 text-xs">
+                          {s}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                  <td>
+                    <div className="flex flex-col gap-1">
+                      {p.hasIdea && (
+                        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
+                          A une idée
+                        </span>
+                      )}
+                      {p.availableToCofound && (
+                        <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">
+                          Dispo pour co-fonder
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs ${
+                        p.status === 'PUBLISHED'
+                          ? 'bg-green-100 text-green-700'
+                          : p.status === 'SUSPENDED'
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-gray-100 text-gray-700'
+                      }`}
+                    >
+                      {STATUS_LABEL[p.status] ?? p.status}
+                    </span>
+                  </td>
+                  <td className="text-gray-500">{new Date(p.createdAt).toLocaleDateString()}</td>
+                  <td className="min-w-[220px]">
+                    {p.status === 'PUBLISHED' &&
+                      (expandedReasonId === p.id ? (
+                        <div className="flex flex-col gap-1">
+                          <textarea
+                            rows={2}
+                            value={reasonDraft[p.id] ?? ''}
+                            onChange={(e) =>
+                              setReasonDraft((prev) => ({ ...prev, [p.id]: e.target.value }))
+                            }
+                            placeholder="Raison de la suspension"
+                            aria-label="Raison de la suspension"
+                            aria-invalid={!!actionError[p.id]}
+                            aria-describedby={
+                              actionError[p.id] ? `reason-error-${p.id}` : undefined
+                            }
+                            className="rounded-md border border-gray-300 px-2 py-1 text-xs"
+                          />
+                          {actionError[p.id] && (
+                            <span id={`reason-error-${p.id}`} className="text-xs text-red-600">
+                              {actionError[p.id]}
+                            </span>
+                          )}
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => confirmSuspend(p.id)}
+                              disabled={submitting[p.id]}
+                              className="rounded-md bg-red-600 px-3 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                            >
+                              {submitting[p.id] ? 'Envoi…' : 'Confirmer'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => cancelSuspend(p.id)}
+                              disabled={submitting[p.id]}
+                              className="rounded-md border border-gray-300 px-3 py-1 text-xs hover:bg-gray-50 disabled:opacity-50"
+                            >
+                              Annuler
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ) : (
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => startSuspend(p.id)}
+                          className="rounded-md border border-gray-300 px-3 py-1 text-xs hover:bg-gray-50"
+                        >
+                          Suspendre
+                        </button>
+                      ))}
+                    {p.status === 'SUSPENDED' && (
                       <button
                         type="button"
-                        onClick={() => startSuspend(p.id)}
-                        className="rounded-md border border-gray-300 px-3 py-1 text-xs hover:bg-gray-50"
+                        onClick={() => republish(p.id)}
+                        disabled={submitting[p.id]}
+                        className="rounded-md border border-gray-300 px-3 py-1 text-xs hover:bg-gray-50 disabled:opacity-50"
                       >
-                        Suspendre
+                        {submitting[p.id] ? 'Envoi…' : 'Republier'}
                       </button>
-                    ))}
-                  {p.status === 'SUSPENDED' && (
-                    <button
-                      type="button"
-                      onClick={() => republish(p.id)}
-                      disabled={submitting[p.id]}
-                      className="rounded-md border border-gray-300 px-3 py-1 text-xs hover:bg-gray-50 disabled:opacity-50"
-                    >
-                      {submitting[p.id] ? 'Envoi…' : 'Republier'}
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {hasMore && (
