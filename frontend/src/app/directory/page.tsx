@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useUser } from '@/contexts/AuthContext';
 import { useApi } from '@/lib/useApi';
@@ -52,17 +52,31 @@ export default function DirectoryPage() {
   const path = buildDirectoryPath(filters, cursor);
   const { data, loading } = useApi<DirectoryPageResult>(path, { skip: !user });
 
+  // `useApi`'s `data` lags one render/effect-cycle behind a `path` change
+  // (its `useState` initializer only runs once at mount; `setData` only
+  // fires from inside its own fetch effect). Keying replace-vs-append off
+  // `cursor` in this effect's deps would fire on the stale `data` from the
+  // PREVIOUS cursor before the real new page arrives — appending it twice.
+  // Instead: key the effect on `[data]` alone (fires only when `useApi`'s
+  // data reference genuinely changes) and decide replace/append via a ref
+  // set at the moment the fetch is TRIGGERED, not when it resolves.
+  const appendModeRef = useRef(false);
+
   useEffect(() => {
     if (!data) return;
-    // `cursor === null` means this response is the first page of the
-    // current filter set (replace); otherwise it is a "load more" page
-    // fetched via setCursor(nextCursor) below (append).
-    setItems((prev) => (cursor === null ? data.items : [...prev, ...data.items]));
-  }, [data, cursor]);
+    setItems((prev) => (appendModeRef.current ? [...prev, ...data.items] : data.items));
+  }, [data]);
 
   function applyFilters(next: Partial<Filters>) {
+    appendModeRef.current = false;
     setFilters((prev) => ({ ...prev, ...next }));
     setCursor(null);
+  }
+
+  function loadMore() {
+    if (!data?.nextCursor) return;
+    appendModeRef.current = true;
+    setCursor(data.nextCursor);
   }
 
   if (!user) return null;
@@ -173,7 +187,7 @@ export default function DirectoryPage() {
       {data?.nextCursor && (
         <button
           type="button"
-          onClick={() => setCursor(data.nextCursor)}
+          onClick={loadMore}
           disabled={loading}
           className="rounded-md border border-gray-300 px-5 py-2.5 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
         >
