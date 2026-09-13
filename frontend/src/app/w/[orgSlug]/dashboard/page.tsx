@@ -1,11 +1,20 @@
 'use client';
 
 import Link from 'next/link';
-import { Sparkles, FolderKanban, ListChecks, CheckCircle2, Users, Plus } from 'lucide-react';
+import {
+  Sparkles,
+  FolderKanban,
+  ListChecks,
+  CheckCircle2,
+  Users,
+  Plus,
+  AlertCircle,
+} from 'lucide-react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useApi } from '@/lib/useApi';
-import { buttonVariants } from '@/components/ui/button';
+import { buttonVariants, Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 
 interface DashboardSummary {
@@ -25,10 +34,29 @@ interface DashboardSummary {
 
 export default function DashboardPage() {
   const { organizationId, slug, loading: wsLoading } = useWorkspace();
-  const { data, loading } = useApi<DashboardSummary>(
+  const { data, loading, error } = useApi<DashboardSummary>(
     organizationId ? `/api/organizations/${organizationId}/dashboard` : '',
     { skip: !organizationId },
   );
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-5xl px-6 py-8">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <AlertDescription>Impossible de charger le tableau de bord.</AlertDescription>
+        </Alert>
+        <Button
+          type="button"
+          variant="outline"
+          className="mt-3"
+          onClick={() => window.location.reload()}
+        >
+          Réessayer
+        </Button>
+      </div>
+    );
+  }
 
   if (wsLoading || loading || !data) {
     return <div className="p-8 text-sm text-slate-600">Chargement…</div>;
