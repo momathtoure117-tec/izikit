@@ -42,8 +42,6 @@ model User {
   withdrawals       Withdrawal[]
   oauthAccounts     OAuthAccount[]
   adminActions      AdminAction[]
-  founderProfile    FounderProfile?
-  profileUnlocks    ProfileUnlock[]
 
   // Multi-tenancy is opt-in per project: by default no resource is org-scoped.
   // Apps that need it (marketplace, B2B SaaS, classifieds) wire owner relations
@@ -278,7 +276,6 @@ model Order {
   id              String    @id @default(cuid())
   userId          String? // nullable — guest checkout supported
   user            User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  profileUnlock   ProfileUnlock?
   amount          Int // gross amount, smallest unit
   currency        String    @default("XOF") // ISO 4217
   status          String    @default("PENDING") // PENDING | PAID | EXPIRED | FAILED | REFUNDED
@@ -336,43 +333,3 @@ model Withdrawal {
   @@index([provider, providerPayoutId])
 }
 
-// ───────────────────────────────────────────────────────────────────────
-// CoFound Africa Phase 1 — founder profiles & pay-per-unlock contact reveal.
-// See docs/superpowers/specs/2026-09-12-cofound-africa-phase1-design.md
-// ───────────────────────────────────────────────────────────────────────
-model FounderProfile {
-  id                 String   @id @default(cuid())
-  userId             String   @unique
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  bio                String
-  city               String
-  sector             String
-  skills             String[]
-  hasIdea            Boolean  @default(false)
-  ideaPitch          String?
-  availableToCofound Boolean  @default(false)
-  externalLink       String?
-  status             String   @default("DRAFT") // DRAFT | PUBLISHED | SUSPENDED
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
-  unlocksReceived ProfileUnlock[] @relation("UnlockTarget")
-
-  @@index([status])
-  @@index([sector])
-  @@index([city])
-}
-
-model ProfileUnlock {
-  id              String         @id @default(cuid())
-  unlockerUserId  String
-  unlocker        User           @relation(fields: [unlockerUserId], references: [id], onDelete: Cascade)
-  targetProfileId String
-  targetProfile   FounderProfile @relation("UnlockTarget", fields: [targetProfileId], references: [id], onDelete: Cascade)
-  orderId         String         @unique
-  order           Order          @relation(fields: [orderId], references: [id], onDelete: Restrict)
-  unlockedAt      DateTime       @default(now())
-
-  @@unique([unlockerUserId, targetProfileId])
-  @@index([targetProfileId])
-}
