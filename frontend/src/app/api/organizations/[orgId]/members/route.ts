@@ -19,7 +19,7 @@ export async function GET(
   return withRequestContext(reqCtx, async () => {
     const { orgId } = await ctx.params;
     const auth = await requireOrgRole(orgId, 'MEMBER');
-    if (auth instanceof Response) return auth as NextResponse;
+    if (auth instanceof NextResponse) return auth;
 
     const rows = await prisma.organizationMember.findMany({
       where: { organizationId: orgId },
@@ -52,7 +52,7 @@ export async function POST(
 
     const { orgId } = await ctx.params;
     const auth = await requireOrgRole(orgId, 'ADMIN');
-    if (auth instanceof Response) return auth as NextResponse;
+    if (auth instanceof NextResponse) return auth;
 
     const parsed = InviteBody.safeParse(await req.json().catch(() => null));
     if (!parsed.success) {

@@ -1,6 +1,6 @@
 import { prismaMock } from '@/test-utils/prisma-mock';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 vi.mock('@/lib/server/middleware', () => ({ requireOrgRole: vi.fn() }));
 
@@ -37,9 +37,7 @@ describe('GET /api/organizations/[orgId]', () => {
 
   it('propagates the 404 from requireOrgRole for a non-member', async () => {
     mockRequireOrgRole.mockResolvedValueOnce(
-      new Response(JSON.stringify({ error: 'Organization not found' }), {
-        status: 404,
-      }) as never,
+      NextResponse.json({ error: 'Organization not found' }, { status: 404 }) as never,
     );
     const res = await GET(new NextRequest('http://test/api/organizations/org_1'), ctxWith('org_1'));
     expect(res.status).toBe(404);

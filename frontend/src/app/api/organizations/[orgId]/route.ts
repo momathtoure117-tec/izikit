@@ -14,7 +14,7 @@ export async function GET(
   return withRequestContext(reqCtx, async () => {
     const { orgId } = await ctx.params;
     const auth = await requireOrgRole(orgId, 'MEMBER');
-    if (auth instanceof Response) return auth as NextResponse;
+    if (auth instanceof NextResponse) return auth;
 
     const organization = await prisma.organization.findUnique({
       where: { id: orgId },
