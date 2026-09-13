@@ -4,7 +4,7 @@ import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { Plus, FolderKanban, AlertCircle } from 'lucide-react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { useApi, invalidateCache } from '@/lib/useApi';
+import { useApi } from '@/lib/useApi';
 import { api, ApiError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,7 +36,9 @@ const STATUS_BADGE_VARIANT: Record<Project['status'], 'success' | 'secondary' | 
 export default function ProjectsPage() {
   const { organizationId, slug, loading: wsLoading } = useWorkspace();
   const path = organizationId ? `/api/organizations/${organizationId}/projects` : '';
-  const { data, loading, error } = useApi<{ projects: Project[] }>(path, { skip: !organizationId });
+  const { data, loading, error, refresh } = useApi<{ projects: Project[] }>(path, {
+    skip: !organizationId,
+  });
 
   const [name, setName] = useState('');
   const [creating, setCreating] = useState(false);
@@ -50,7 +52,7 @@ export default function ProjectsPage() {
     try {
       await api(path, { method: 'POST', body: { name } });
       setName('');
-      invalidateCache(path);
+      await refresh();
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : 'Erreur inconnue');
     } finally {
