@@ -16,3 +16,23 @@ export async function countOwners(
     where: { organizationId, role: 'OWNER' },
   });
 }
+
+/**
+ * Is `userId` a member of `organizationId`?
+ *
+ * Task routes accept an `assigneeId` from the client. Without this check a well-formed but
+ * foreign/nonexistent cuid reaches Postgres and blows up as an unhandled FK-constraint error
+ * (a 500) — or, worse, silently assigns a task to someone outside the workspace. Callers turn
+ * a `false` into a 400 ASSIGNEE_NOT_MEMBER.
+ */
+export async function isOrgMember(
+  client: PrismaClient | Prisma.TransactionClient,
+  organizationId: string,
+  userId: string,
+): Promise<boolean> {
+  const row = await client.organizationMember.findUnique({
+    where: { organizationId_userId: { organizationId, userId } },
+    select: { userId: true },
+  });
+  return row !== null;
+}

@@ -7,6 +7,7 @@ import { verifyCsrf } from '@/lib/server/auth';
 import { requireOrgRole } from '@/lib/server/middleware';
 import { prisma } from '@/lib/server/prisma';
 import { zCuid } from '@/lib/server/zod-helpers';
+import { isOrgMember } from '@/lib/server/organizations/guards';
 import { makeRequestContext, withRequestContext } from '@/lib/server/observability/request-context';
 
 const UpdateBody = z.object({
@@ -38,6 +39,16 @@ export async function PATCH(
     }
 
     const { title, status, assigneeId, dueAt } = parsed.data;
+
+    // A well-formed cuid is not proof of membership — without this the FK blows up as a 500.
+    // `null` is an explicit un-assign and needs no check.
+    if (assigneeId && !(await isOrgMember(prisma, orgId, assigneeId))) {
+      return NextResponse.json(
+        { error: 'ASSIGNEE_NOT_MEMBER', message: 'Assignee must be a member of this workspace' },
+        { status: 400, headers: { 'x-request-id': reqCtx.requestId } },
+      );
+    }
+
     const { count } = await prisma.task.updateMany({
       where: { id: taskId, organizationId: orgId },
       data: {

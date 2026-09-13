@@ -7,6 +7,7 @@ import { verifyCsrf } from '@/lib/server/auth';
 import { requireOrgRole } from '@/lib/server/middleware';
 import { prisma } from '@/lib/server/prisma';
 import { zCuid } from '@/lib/server/zod-helpers';
+import { isOrgMember } from '@/lib/server/organizations/guards';
 import { makeRequestContext, withRequestContext } from '@/lib/server/observability/request-context';
 
 const CreateBody = z.object({
@@ -44,6 +45,14 @@ export async function POST(
       return NextResponse.json(
         { error: 'PROJECT_NOT_FOUND', message: 'Project not found' },
         { status: 404, headers: { 'x-request-id': reqCtx.requestId } },
+      );
+    }
+
+    // A well-formed cuid is not proof of membership — without this the FK blows up as a 500.
+    if (parsed.data.assigneeId && !(await isOrgMember(prisma, orgId, parsed.data.assigneeId))) {
+      return NextResponse.json(
+        { error: 'ASSIGNEE_NOT_MEMBER', message: 'Assignee must be a member of this workspace' },
+        { status: 400, headers: { 'x-request-id': reqCtx.requestId } },
       );
     }
 

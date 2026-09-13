@@ -14,6 +14,9 @@ const memberCtx = {
   orgMember: { organizationId: 'org_1', userId: 'u1', role: 'MEMBER' as const },
 };
 
+/** Well-formed cuid — satisfies zCuid so the request reaches the membership guard. */
+const ASSIGNEE = 'cku2y3z4a5b6c7d8e9f0g1h2';
+
 function ctxWith(
   orgId: string,
   taskId: string,
@@ -70,6 +73,67 @@ describe('PATCH /api/organizations/[orgId]/tasks/[taskId]', () => {
         data: { status: 'DONE' },
       }),
     );
+  });
+
+  it('assigns the task when the assignee is a member of the org', async () => {
+    prismaMock.organizationMember.findUnique.mockResolvedValueOnce({ userId: ASSIGNEE } as never);
+    prismaMock.task.updateMany.mockResolvedValueOnce({ count: 1 } as never);
+    prismaMock.task.findFirst.mockResolvedValueOnce({
+      id: 't1',
+      title: 'Design mock',
+      status: 'TODO',
+      assigneeId: ASSIGNEE,
+      dueAt: null,
+    } as never);
+
+    const res = await PATCH(
+      new NextRequest('http://test/api/organizations/org_1/tasks/t1', {
+        method: 'PATCH',
+        body: JSON.stringify({ assigneeId: ASSIGNEE }),
+      }),
+      ctxWith('org_1', 't1'),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { task: { assigneeId: string } };
+    expect(body.task.assigneeId).toBe(ASSIGNEE);
+  });
+
+  it('returns 400 ASSIGNEE_NOT_MEMBER when the assignee is not in the org', async () => {
+    // A well-formed cuid used to reach the FK and surface as an unhandled 500.
+    prismaMock.organizationMember.findUnique.mockResolvedValueOnce(null as never);
+
+    const res = await PATCH(
+      new NextRequest('http://test/api/organizations/org_1/tasks/t1', {
+        method: 'PATCH',
+        body: JSON.stringify({ assigneeId: ASSIGNEE }),
+      }),
+      ctxWith('org_1', 't1'),
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('ASSIGNEE_NOT_MEMBER');
+    expect(prismaMock.task.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('allows an explicit null assigneeId (un-assign) without a membership lookup', async () => {
+    prismaMock.task.updateMany.mockResolvedValueOnce({ count: 1 } as never);
+    prismaMock.task.findFirst.mockResolvedValueOnce({
+      id: 't1',
+      title: 'Design mock',
+      status: 'TODO',
+      assigneeId: null,
+      dueAt: null,
+    } as never);
+
+    const res = await PATCH(
+      new NextRequest('http://test/api/organizations/org_1/tasks/t1', {
+        method: 'PATCH',
+        body: JSON.stringify({ assigneeId: null }),
+      }),
+      ctxWith('org_1', 't1'),
+    );
+    expect(res.status).toBe(200);
+    expect(prismaMock.organizationMember.findUnique).not.toHaveBeenCalled();
   });
 
   it('returns 404 TASK_NOT_FOUND when nothing was updated', async () => {
