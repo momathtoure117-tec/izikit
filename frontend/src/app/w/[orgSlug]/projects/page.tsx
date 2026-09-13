@@ -12,6 +12,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { WorkspaceNotFound } from '@/components/workspace-not-found';
 
 interface Project {
   id: string;
@@ -34,7 +35,7 @@ const STATUS_BADGE_VARIANT: Record<Project['status'], 'success' | 'secondary' | 
 };
 
 export default function ProjectsPage() {
-  const { organizationId, slug, loading: wsLoading } = useWorkspace();
+  const { organizationId, slug, loading: wsLoading, notFound: wsNotFound } = useWorkspace();
   const path = organizationId ? `/api/organizations/${organizationId}/projects` : '';
   const { data, loading, error, refresh } = useApi<{ projects: Project[] }>(path, {
     skip: !organizationId,
@@ -60,6 +61,8 @@ export default function ProjectsPage() {
     }
   }
 
+  if (wsNotFound) return <WorkspaceNotFound />;
+
   if (error) {
     return (
       <div className="mx-auto max-w-5xl px-6 py-8">
@@ -79,7 +82,7 @@ export default function ProjectsPage() {
     );
   }
 
-  if (wsLoading || loading) {
+  if (wsLoading || loading || !data) {
     return <div className="p-8 text-sm text-slate-600">Chargement…</div>;
   }
 

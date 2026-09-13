@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { WorkspaceNotFound } from '@/components/workspace-not-found';
 
 interface Member {
   userId: string;
@@ -22,7 +23,7 @@ interface MembersResponse {
 }
 
 export default function TeamPage() {
-  const { organizationId, role, loading: wsLoading } = useWorkspace();
+  const { organizationId, role, loading: wsLoading, notFound: wsNotFound } = useWorkspace();
   const path = organizationId ? `/api/organizations/${organizationId}/members` : '';
   const { data, loading, error, refresh } = useApi<MembersResponse>(path, {
     skip: !organizationId,
@@ -70,6 +71,8 @@ export default function TeamPage() {
       if (err instanceof ApiError) {
         if (err.code === 'LAST_OWNER') {
           setActionError('Impossible de retirer le dernier propriétaire.');
+        } else if (err.code === 'ORG_ROLE_INSUFFICIENT') {
+          setActionError('Seul un propriétaire peut modifier le rôle de propriétaire.');
         } else {
           setActionError(err.message);
         }
@@ -89,6 +92,8 @@ export default function TeamPage() {
       if (err instanceof ApiError) {
         if (err.code === 'LAST_OWNER') {
           setActionError('Impossible de supprimer le dernier propriétaire.');
+        } else if (err.code === 'ORG_ROLE_INSUFFICIENT') {
+          setActionError('Seul un propriétaire peut retirer un propriétaire.');
         } else {
           setActionError(err.message);
         }
@@ -97,6 +102,8 @@ export default function TeamPage() {
       }
     }
   }
+
+  if (wsNotFound) return <WorkspaceNotFound />;
 
   if (error) {
     return (

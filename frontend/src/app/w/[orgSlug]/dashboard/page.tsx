@@ -16,6 +16,7 @@ import { buttonVariants, Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
+import { WorkspaceNotFound } from '@/components/workspace-not-found';
 
 interface DashboardSummary {
   activeProjectsCount: number;
@@ -33,11 +34,13 @@ interface DashboardSummary {
 }
 
 export default function DashboardPage() {
-  const { organizationId, slug, loading: wsLoading } = useWorkspace();
+  const { organizationId, slug, loading: wsLoading, notFound: wsNotFound } = useWorkspace();
   const { data, loading, error } = useApi<DashboardSummary>(
     organizationId ? `/api/organizations/${organizationId}/dashboard` : '',
     { skip: !organizationId },
   );
+
+  if (wsNotFound) return <WorkspaceNotFound />;
 
   if (error) {
     return (

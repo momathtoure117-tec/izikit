@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { WorkspaceNotFound } from '@/components/workspace-not-found';
 
 interface Task {
   id: string;
@@ -48,7 +49,7 @@ const NEXT_STATUS: Record<Task['status'], Task['status']> = {
 };
 
 export default function ProjectDetailPage() {
-  const { organizationId, slug, loading: wsLoading } = useWorkspace();
+  const { organizationId, slug, loading: wsLoading, notFound: wsNotFound } = useWorkspace();
   const params = useParams<{ projectId: string }>();
   const path = organizationId
     ? `/api/organizations/${organizationId}/projects/${params.projectId}`
@@ -89,6 +90,8 @@ export default function ProjectDetailPage() {
       setFormError(err instanceof ApiError ? err.message : 'Erreur inconnue');
     }
   }
+
+  if (wsNotFound) return <WorkspaceNotFound />;
 
   if (error) {
     return (

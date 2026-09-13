@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { WorkspaceNotFound } from '@/components/workspace-not-found';
 
 interface MyTask {
   id: string;
@@ -37,7 +38,7 @@ const NEXT_STATUS: Record<MyTask['status'], MyTask['status']> = {
 };
 
 export default function MyTasksPage() {
-  const { organizationId, loading: wsLoading } = useWorkspace();
+  const { organizationId, loading: wsLoading, notFound: wsNotFound } = useWorkspace();
   const path = organizationId ? `/api/organizations/${organizationId}/tasks?assignee=me` : '';
   const { data, loading, error, refresh } = useApi<{ tasks: MyTask[] }>(path, {
     skip: !organizationId,
@@ -58,6 +59,8 @@ export default function MyTasksPage() {
     }
   }
 
+  if (wsNotFound) return <WorkspaceNotFound />;
+
   if (error) {
     return (
       <div className="mx-auto max-w-3xl px-6 py-8">
@@ -77,7 +80,7 @@ export default function MyTasksPage() {
     );
   }
 
-  if (wsLoading || loading) {
+  if (wsLoading || loading || !data) {
     return <div className="p-8 text-sm text-slate-600">Chargement…</div>;
   }
 
