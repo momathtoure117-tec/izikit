@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { Suspense, useEffect, useState, type FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AlertCircle, Building2 } from 'lucide-react';
 import { api, ApiError } from '@/lib/api';
@@ -16,7 +16,7 @@ interface Organization {
   name: string;
 }
 
-export default function OnboardingPage() {
+function OnboardingForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [checking, setChecking] = useState(true);
@@ -108,5 +108,14 @@ export default function OnboardingPage() {
         </CardContent>
       </Card>
     </main>
+  );
+}
+
+// Wrap in <Suspense> because useSearchParams() requires it under the App Router.
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={null}>
+      <OnboardingForm />
+    </Suspense>
   );
 }
