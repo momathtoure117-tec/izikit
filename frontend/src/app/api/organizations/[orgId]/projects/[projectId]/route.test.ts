@@ -74,6 +74,29 @@ describe('PATCH /api/organizations/[orgId]/projects/[projectId]', () => {
     );
     expect(res.status).toBe(200);
   });
+
+  it('omits undefined fields from partial update payload', async () => {
+    prismaMock.project.updateMany.mockResolvedValueOnce({ count: 1 } as never);
+    prismaMock.project.findFirst.mockResolvedValueOnce({
+      id: 'p1',
+      name: 'Updated name',
+      description: null,
+      status: 'ACTIVE',
+    } as never);
+    const res = await PATCH(
+      new NextRequest('http://test/api/organizations/org_1/projects/p1', {
+        method: 'PATCH',
+        body: JSON.stringify({ name: 'Updated name' }),
+      }),
+      ctxWith('org_1', 'p1'),
+    );
+    expect(res.status).toBe(200);
+    expect(prismaMock.project.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { name: 'Updated name' },
+      }),
+    );
+  });
 });
 
 describe('DELETE /api/organizations/[orgId]/projects/[projectId]', () => {
