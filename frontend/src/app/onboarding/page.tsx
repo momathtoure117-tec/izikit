@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AlertCircle, Building2 } from 'lucide-react';
 import { api, ApiError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ interface Organization {
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [checking, setChecking] = useState(true);
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -25,11 +26,12 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     let cancelled = false;
+    const hasCreateIntent = searchParams.has('intent');
     api<{ organizations: Organization[] }>('/api/organizations')
       .then((res) => {
         if (cancelled) return;
         const first = res.organizations[0];
-        if (first) {
+        if (first && !hasCreateIntent) {
           router.replace(`/w/${first.slug}/dashboard`);
           return;
         }
@@ -41,7 +43,7 @@ export default function OnboardingPage() {
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [router, searchParams]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
