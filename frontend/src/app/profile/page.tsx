@@ -1,10 +1,18 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
+import { X } from 'lucide-react';
 import { useUser } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useApi, invalidateCache } from '@/lib/useApi';
 import { api, ApiError } from '@/lib/api';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface Profile {
   id: string;
@@ -23,6 +31,12 @@ const STATUS_LABEL: Record<Profile['status'], string> = {
   DRAFT: 'Brouillon',
   PUBLISHED: 'Publié',
   SUSPENDED: 'Suspendu',
+};
+
+const STATUS_BADGE_VARIANT: Record<Profile['status'], 'secondary' | 'success' | 'destructive'> = {
+  DRAFT: 'secondary',
+  PUBLISHED: 'success',
+  SUSPENDED: 'destructive',
 };
 
 export default function ProfilePage() {
@@ -124,147 +138,152 @@ export default function ProfilePage() {
 
   if (profileLoading && !hydrated) {
     return (
-      <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-4">
-        <p className="text-sm text-gray-600">Chargement…</p>
+      <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+        <p className="text-sm text-slate-500">Chargement…</p>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-4 py-10">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Mon profil</h1>
-        {status && (
-          <span className="rounded-full border border-gray-300 px-3 py-1 text-xs font-medium">
-            {STATUS_LABEL[status]}
-          </span>
-        )}
-      </div>
+    <main className="mx-auto flex min-h-screen max-w-xl flex-col gap-6 bg-slate-50 px-4 py-10">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-2xl">Mon profil</CardTitle>
+            {status && <Badge variant={STATUS_BADGE_VARIANT[status]}>{STATUS_LABEL[status]}</Badge>}
+          </div>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-5">
+          {status === 'SUSPENDED' && (
+            <Alert variant="destructive">
+              <AlertDescription>
+                Ton profil a été suspendu par un modérateur. Tu peux continuer à le modifier, mais
+                il ne sera republié qu&apos;après validation.
+              </AlertDescription>
+            </Alert>
+          )}
 
-      {status === 'SUSPENDED' && (
-        <p className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          Ton profil a été suspendu par un modérateur. Tu peux continuer à le modifier, mais il ne
-          sera republié qu&apos;après validation.
-        </p>
-      )}
-
-      <form onSubmit={onSubmit} className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1 text-sm">
-          Bio
-          <textarea
-            required
-            rows={4}
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-            className="rounded-md border border-gray-300 px-3 py-2"
-          />
-          {fieldErrors.bio && <span className="text-xs text-red-600">{fieldErrors.bio}</span>}
-        </label>
-
-        <label className="flex flex-col gap-1 text-sm">
-          Ville
-          <input
-            required
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-            className="rounded-md border border-gray-300 px-3 py-2"
-          />
-          {fieldErrors.city && <span className="text-xs text-red-600">{fieldErrors.city}</span>}
-        </label>
-
-        <label className="flex flex-col gap-1 text-sm">
-          Secteur
-          <input
-            required
-            value={sector}
-            onChange={(e) => setSector(e.target.value)}
-            className="rounded-md border border-gray-300 px-3 py-2"
-          />
-          {fieldErrors.sector && <span className="text-xs text-red-600">{fieldErrors.sector}</span>}
-        </label>
-
-        <div className="flex flex-col gap-1 text-sm">
-          Compétences
-          {skills.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {skills.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => removeSkill(s)}
-                  aria-label={`Retirer ${s}`}
-                  className="rounded-full border border-gray-300 px-3 py-1 text-xs"
-                >
-                  {s} ×
-                </button>
-              ))}
+          <form onSubmit={onSubmit} className="flex flex-col gap-5">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="bio">Bio</Label>
+              <Textarea
+                id="bio"
+                required
+                rows={4}
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+              />
+              {fieldErrors.bio && <span className="text-xs text-red-600">{fieldErrors.bio}</span>}
             </div>
-          )}
-          <input
-            value={skillInput}
-            onChange={(e) => setSkillInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ',') {
-                e.preventDefault();
-                addSkillFromInput();
-              }
-            }}
-            placeholder="Tape une compétence puis Entrée"
-            className="rounded-md border border-gray-300 px-3 py-2"
-          />
-          {fieldErrors.skills && <span className="text-xs text-red-600">{fieldErrors.skills}</span>}
-        </div>
 
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={hasIdea} onChange={(e) => setHasIdea(e.target.checked)} />
-          J&apos;ai une idée
-        </label>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="city">Ville</Label>
+              <Input id="city" required value={city} onChange={(e) => setCity(e.target.value)} />
+              {fieldErrors.city && <span className="text-xs text-red-600">{fieldErrors.city}</span>}
+            </div>
 
-        {hasIdea && (
-          <label className="flex flex-col gap-1 text-sm">
-            Pitch de l&apos;idée
-            <textarea
-              rows={3}
-              value={ideaPitch}
-              onChange={(e) => setIdeaPitch(e.target.value)}
-              className="rounded-md border border-gray-300 px-3 py-2"
-            />
-            {fieldErrors.ideaPitch && (
-              <span className="text-xs text-red-600">{fieldErrors.ideaPitch}</span>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="sector">Secteur</Label>
+              <Input
+                id="sector"
+                required
+                value={sector}
+                onChange={(e) => setSector(e.target.value)}
+              />
+              {fieldErrors.sector && (
+                <span className="text-xs text-red-600">{fieldErrors.sector}</span>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="skillInput">Compétences</Label>
+              {skills.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {skills.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => removeSkill(s)}
+                      aria-label={`Retirer ${s}`}
+                      className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+                    >
+                      {s}
+                      <X className="h-3 w-3" />
+                    </button>
+                  ))}
+                </div>
+              )}
+              <Input
+                id="skillInput"
+                value={skillInput}
+                onChange={(e) => setSkillInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault();
+                    addSkillFromInput();
+                  }
+                }}
+                placeholder="Tape une compétence puis Entrée"
+              />
+              {fieldErrors.skills && (
+                <span className="text-xs text-red-600">{fieldErrors.skills}</span>
+              )}
+            </div>
+
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={hasIdea}
+                onChange={(e) => setHasIdea(e.target.checked)}
+                className="h-4 w-4 cursor-pointer rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              J&apos;ai une idée
+            </label>
+
+            {hasIdea && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="ideaPitch">Pitch de l&apos;idée</Label>
+                <Textarea
+                  id="ideaPitch"
+                  rows={3}
+                  value={ideaPitch}
+                  onChange={(e) => setIdeaPitch(e.target.value)}
+                />
+                {fieldErrors.ideaPitch && (
+                  <span className="text-xs text-red-600">{fieldErrors.ideaPitch}</span>
+                )}
+              </div>
             )}
-          </label>
-        )}
 
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={availableToCofound}
-            onChange={(e) => setAvailableToCofound(e.target.checked)}
-          />
-          Disponible pour co-fonder
-        </label>
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={availableToCofound}
+                onChange={(e) => setAvailableToCofound(e.target.checked)}
+                className="h-4 w-4 cursor-pointer rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              Disponible pour co-fonder
+            </label>
 
-        <label className="flex flex-col gap-1 text-sm">
-          Lien externe (LinkedIn, portfolio…)
-          <input
-            value={externalLink}
-            onChange={(e) => setExternalLink(e.target.value)}
-            placeholder="https://…"
-            className="rounded-md border border-gray-300 px-3 py-2"
-          />
-          {fieldErrors.externalLink && (
-            <span className="text-xs text-red-600">{fieldErrors.externalLink}</span>
-          )}
-        </label>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="externalLink">Lien externe (LinkedIn, portfolio…)</Label>
+              <Input
+                id="externalLink"
+                value={externalLink}
+                onChange={(e) => setExternalLink(e.target.value)}
+                placeholder="https://…"
+              />
+              {fieldErrors.externalLink && (
+                <span className="text-xs text-red-600">{fieldErrors.externalLink}</span>
+              )}
+            </div>
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded-md bg-black px-5 py-2.5 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
-        >
-          {submitting ? 'Enregistrement…' : 'Enregistrer'}
-        </button>
-      </form>
+            <Button type="submit" disabled={submitting} className="w-full">
+              {submitting ? 'Enregistrement…' : 'Enregistrer'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </main>
   );
 }

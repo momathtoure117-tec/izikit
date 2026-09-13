@@ -4,6 +4,10 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/contexts/ToastContext';
 import { api, ApiError } from '@/lib/api';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Card } from '@/components/ui/card';
 
 type StatusFilter = 'PUBLISHED' | 'SUSPENDED' | 'DRAFT';
 
@@ -11,6 +15,12 @@ const STATUS_LABEL: Record<StatusFilter, string> = {
   PUBLISHED: 'Publié',
   SUSPENDED: 'Suspendu',
   DRAFT: 'Brouillon',
+};
+
+const STATUS_BADGE_VARIANT: Record<StatusFilter, 'success' | 'destructive' | 'secondary'> = {
+  PUBLISHED: 'success',
+  SUSPENDED: 'destructive',
+  DRAFT: 'secondary',
 };
 
 interface AdminProfile {
@@ -177,111 +187,105 @@ export default function AdminProfilesPage() {
 
   if (!checked || !authorized) {
     return (
-      <main className="flex min-h-screen items-center justify-center text-sm text-gray-500">
+      <main className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-500">
         Vérification de l&apos;accès…
       </main>
     );
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-4xl flex-col gap-6 px-4 py-10">
-      <h1 className="text-2xl font-bold">Modération des profils</h1>
+    <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 bg-slate-50 px-4 py-10">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Modération des profils</h1>
+        <p className="text-sm text-slate-500">Suspends ou republie les profils fondateurs.</p>
+      </div>
 
       <div className="flex gap-2 text-sm">
         {(['PUBLISHED', 'SUSPENDED', 'DRAFT'] as const).map((s) => (
-          <button
+          <Button
             key={s}
             type="button"
+            size="sm"
+            variant={statusFilter === s ? 'default' : 'outline'}
             onClick={() => setStatusFilter(s)}
-            className={`rounded-md border px-3 py-2 ${
-              statusFilter === s ? 'border-black bg-black text-white' : 'border-gray-300'
-            }`}
           >
             {STATUS_LABEL[s]}
-          </button>
+          </Button>
         ))}
       </div>
 
       {error && (
-        <div className="flex flex-col gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div className="flex flex-col gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           <p>Impossible de charger la liste des profils.</p>
-          <button type="button" onClick={() => void load(true)} className="self-start underline">
+          <button
+            type="button"
+            onClick={() => void load(true)}
+            className="cursor-pointer self-start underline"
+          >
             Réessayer
           </button>
         </div>
       )}
 
       {!error && !loading && profiles.length === 0 && (
-        <p className="text-sm text-gray-600">Aucun profil ne correspond à ce filtre.</p>
+        <p className="text-sm text-slate-500">Aucun profil ne correspond à ce filtre.</p>
       )}
 
       {profiles.length > 0 && (
-        <div className="overflow-x-auto">
+        <Card className="overflow-x-auto p-0">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-200 text-left text-xs uppercase tracking-wider text-gray-500">
-                <th className="py-2">Email</th>
-                <th>Bio</th>
-                <th>Ville</th>
-                <th>Secteur</th>
-                <th>Compétences</th>
-                <th>Rôle</th>
-                <th>Statut</th>
-                <th>Créé le</th>
-                <th>Actions</th>
+              <tr className="border-b border-slate-200 text-left text-xs font-semibold tracking-wider text-slate-500 uppercase">
+                <th className="px-4 py-3">Email</th>
+                <th className="px-4 py-3">Bio</th>
+                <th className="px-4 py-3">Ville</th>
+                <th className="px-4 py-3">Secteur</th>
+                <th className="px-4 py-3">Compétences</th>
+                <th className="px-4 py-3">Rôle</th>
+                <th className="px-4 py-3">Statut</th>
+                <th className="px-4 py-3">Créé le</th>
+                <th className="px-4 py-3">Actions</th>
               </tr>
             </thead>
             <tbody>
               {profiles.map((p) => (
-                <tr key={p.id} className="border-b border-gray-100 align-top">
-                  <td className="py-2 font-medium">{p.user.email}</td>
-                  <td className="max-w-xs text-gray-600">
+                <tr key={p.id} className="border-b border-slate-100 align-top last:border-0">
+                  <td className="px-4 py-3 font-medium text-slate-900">{p.user.email}</td>
+                  <td className="max-w-xs px-4 py-3 text-slate-600">
                     <span className="line-clamp-2">{p.bio}</span>
                   </td>
-                  <td className="text-gray-600">{p.city}</td>
-                  <td className="text-gray-600">{p.sector}</td>
-                  <td>
+                  <td className="px-4 py-3 text-slate-600">{p.city}</td>
+                  <td className="px-4 py-3 text-slate-600">{p.sector}</td>
+                  <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
                       {p.skills.map((s) => (
-                        <span key={s} className="rounded-full bg-gray-100 px-2 py-0.5 text-xs">
+                        <Badge key={s} variant="secondary">
                           {s}
-                        </span>
+                        </Badge>
                       ))}
                     </div>
                   </td>
-                  <td>
+                  <td className="px-4 py-3">
                     <div className="flex flex-col gap-1">
-                      {p.hasIdea && (
-                        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
-                          A une idée
-                        </span>
-                      )}
+                      {p.hasIdea && <Badge>A une idée</Badge>}
                       {p.availableToCofound && (
-                        <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">
-                          Dispo pour co-fonder
-                        </span>
+                        <Badge variant="success">Dispo pour co-fonder</Badge>
                       )}
                     </div>
                   </td>
-                  <td>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs ${
-                        p.status === 'PUBLISHED'
-                          ? 'bg-green-100 text-green-700'
-                          : p.status === 'SUSPENDED'
-                            ? 'bg-red-100 text-red-700'
-                            : 'bg-gray-100 text-gray-700'
-                      }`}
-                    >
+                  <td className="px-4 py-3">
+                    <Badge variant={STATUS_BADGE_VARIANT[p.status]}>
                       {STATUS_LABEL[p.status] ?? p.status}
-                    </span>
+                    </Badge>
                   </td>
-                  <td className="text-gray-500">{new Date(p.createdAt).toLocaleDateString()}</td>
-                  <td className="min-w-[220px]">
+                  <td className="px-4 py-3 text-slate-500">
+                    {new Date(p.createdAt).toLocaleDateString()}
+                  </td>
+                  <td className="min-w-[220px] px-4 py-3">
                     {p.status === 'PUBLISHED' &&
                       (expandedReasonId === p.id ? (
-                        <div className="flex flex-col gap-1">
-                          <textarea
+                        <div className="flex flex-col gap-1.5">
+                          <Textarea
                             rows={2}
                             value={reasonDraft[p.id] ?? ''}
                             onChange={(e) =>
@@ -293,7 +297,7 @@ export default function AdminProfilesPage() {
                             aria-describedby={
                               actionError[p.id] ? `reason-error-${p.id}` : undefined
                             }
-                            className="rounded-md border border-gray-300 px-2 py-1 text-xs"
+                            className="text-xs"
                           />
                           {actionError[p.id] && (
                             <span id={`reason-error-${p.id}`} className="text-xs text-red-600">
@@ -301,60 +305,65 @@ export default function AdminProfilesPage() {
                             </span>
                           )}
                           <div className="flex gap-2">
-                            <button
+                            <Button
                               type="button"
+                              size="sm"
+                              variant="destructive"
                               onClick={() => confirmSuspend(p.id)}
                               disabled={submitting[p.id]}
-                              className="rounded-md bg-red-600 px-3 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
                             >
                               {submitting[p.id] ? 'Envoi…' : 'Confirmer'}
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                               type="button"
+                              size="sm"
+                              variant="outline"
                               onClick={() => cancelSuspend(p.id)}
                               disabled={submitting[p.id]}
-                              className="rounded-md border border-gray-300 px-3 py-1 text-xs hover:bg-gray-50 disabled:opacity-50"
                             >
                               Annuler
-                            </button>
+                            </Button>
                           </div>
                         </div>
                       ) : (
-                        <button
+                        <Button
                           type="button"
+                          size="sm"
+                          variant="outline"
                           onClick={() => startSuspend(p.id)}
-                          className="rounded-md border border-gray-300 px-3 py-1 text-xs hover:bg-gray-50"
                         >
                           Suspendre
-                        </button>
+                        </Button>
                       ))}
                     {p.status === 'SUSPENDED' && (
-                      <button
+                      <Button
                         type="button"
+                        size="sm"
+                        variant="outline"
                         onClick={() => republish(p.id)}
                         disabled={submitting[p.id]}
-                        className="rounded-md border border-gray-300 px-3 py-1 text-xs hover:bg-gray-50 disabled:opacity-50"
                       >
                         {submitting[p.id] ? 'Envoi…' : 'Republier'}
-                      </button>
+                      </Button>
                     )}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </Card>
       )}
 
       {hasMore && (
-        <button
+        <Button
           type="button"
+          variant="outline"
+          className="self-start"
           onClick={() => void load(false)}
           disabled={loading}
-          className="self-start rounded-md border border-gray-300 px-5 py-2.5 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
         >
           {loading ? 'Chargement…' : 'Charger plus'}
-        </button>
+        </Button>
       )}
     </main>
   );

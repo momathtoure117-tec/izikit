@@ -3,11 +3,15 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { ArrowLeft, ExternalLink, Lightbulb, Handshake, Lock, Mail } from 'lucide-react';
 import { useUser } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useApi } from '@/lib/useApi';
 import { api, ApiError } from '@/lib/api';
 import { savePendingUnlock } from '@/lib/pending-unlock';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 
 interface ProfileDetail {
   id: string;
@@ -92,17 +96,17 @@ export default function ProfileDetailPage() {
 
   if (pending) {
     return (
-      <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-4">
-        <p className="text-sm text-gray-600">Chargement…</p>
+      <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+        <p className="text-sm text-slate-500">Chargement…</p>
       </main>
     );
   }
 
   if (error || !data) {
     return (
-      <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-4 px-4 text-center">
-        <p className="text-sm text-gray-600">Profil introuvable.</p>
-        <Link href="/directory" className="text-sm underline">
+      <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-50 px-4 text-center">
+        <p className="text-sm text-slate-500">Profil introuvable.</p>
+        <Link href="/directory" className="text-sm font-medium text-indigo-600 hover:underline">
           Retour à l&apos;annuaire
         </Link>
       </main>
@@ -112,65 +116,91 @@ export default function ProfileDetailPage() {
   const p = data.profile;
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col gap-4 px-4 py-10">
-      <Link href="/directory" className="text-sm underline">
-        ← Annuaire
+    <main className="mx-auto flex min-h-screen max-w-xl flex-col gap-4 bg-slate-50 px-4 py-10">
+      <Link
+        href="/directory"
+        className="flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-slate-900"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Annuaire
       </Link>
 
-      <h1 className="text-2xl font-bold">{p.sector}</h1>
-      <p className="text-sm text-gray-500">{p.city}</p>
-      <p className="text-sm">{p.bio}</p>
+      <Card className="p-6">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">{p.sector}</h1>
+        <p className="text-sm text-slate-500">{p.city}</p>
+        <p className="mt-4 text-sm text-slate-700">{p.bio}</p>
 
-      {p.skills.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {p.skills.map((s) => (
-            <span key={s} className="rounded-full bg-gray-100 px-2 py-0.5 text-xs">
-              {s}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {p.hasIdea && p.ideaPitch && (
-        <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm">
-          <p className="font-medium">Idée</p>
-          <p>{p.ideaPitch}</p>
-        </div>
-      )}
-
-      {p.availableToCofound && <p className="text-sm text-green-700">Disponible pour co-fonder</p>}
-
-      {p.externalLink && (
-        <a href={p.externalLink} target="_blank" rel="noreferrer" className="text-sm underline">
-          Lien externe
-        </a>
-      )}
-
-      <div className="mt-4 rounded-md border border-gray-200 p-4">
-        {p.isOwner ? (
-          <>
-            <p className="text-sm text-gray-500">C&apos;est votre profil.</p>
-            {p.contactEmail && <p className="font-medium">{p.contactEmail}</p>}
-            <Link href="/profile" className="mt-2 inline-block text-sm underline">
-              Modifier mon profil
-            </Link>
-          </>
-        ) : p.isUnlocked ? (
-          <>
-            <p className="text-sm text-gray-500">Coordonnées</p>
-            <p className="font-medium">{p.contactEmail}</p>
-          </>
-        ) : (
-          <button
-            type="button"
-            onClick={onUnlock}
-            disabled={unlocking}
-            className="w-full rounded-md bg-black px-5 py-2.5 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
-          >
-            {unlocking ? 'Redirection…' : `Débloquer les coordonnées (${p.unlockPriceFcfa} FCFA)`}
-          </button>
+        {p.skills.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-1">
+            {p.skills.map((s) => (
+              <Badge key={s} variant="secondary">
+                {s}
+              </Badge>
+            ))}
+          </div>
         )}
-      </div>
+
+        {p.hasIdea && p.ideaPitch && (
+          <div className="mt-4 flex gap-3 rounded-lg border border-indigo-100 bg-indigo-50 p-4 text-sm">
+            <Lightbulb className="h-4 w-4 shrink-0 text-indigo-600" />
+            <div>
+              <p className="font-medium text-indigo-900">Idée</p>
+              <p className="text-indigo-800">{p.ideaPitch}</p>
+            </div>
+          </div>
+        )}
+
+        {p.availableToCofound && (
+          <div className="mt-3 flex items-center gap-2 text-sm text-emerald-700">
+            <Handshake className="h-4 w-4" />
+            Disponible pour co-fonder
+          </div>
+        )}
+
+        {p.externalLink && (
+          <a
+            href={p.externalLink}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-indigo-600 hover:underline"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            Lien externe
+          </a>
+        )}
+      </Card>
+
+      <Card>
+        <CardContent className="flex flex-col gap-2 p-4">
+          {p.isOwner ? (
+            <>
+              <p className="text-sm text-slate-500">C&apos;est votre profil.</p>
+              {p.contactEmail && (
+                <p className="flex items-center gap-2 font-medium text-slate-900">
+                  <Mail className="h-4 w-4 text-slate-400" />
+                  {p.contactEmail}
+                </p>
+              )}
+              <Link href="/profile" className="text-sm font-medium text-indigo-600 hover:underline">
+                Modifier mon profil
+              </Link>
+            </>
+          ) : p.isUnlocked ? (
+            <>
+              <p className="text-sm text-slate-500">Coordonnées</p>
+              <p className="flex items-center gap-2 font-medium text-slate-900">
+                <Mail className="h-4 w-4 text-slate-400" />
+                {p.contactEmail}
+              </p>
+            </>
+          ) : (
+            <Button type="button" onClick={onUnlock} disabled={unlocking} className="w-full">
+              <Lock className="h-4 w-4" />
+              {unlocking ? 'Redirection…' : `Débloquer les coordonnées (${p.unlockPriceFcfa} FCFA)`}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
     </main>
   );
 }

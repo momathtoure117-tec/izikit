@@ -2,8 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { SlidersHorizontal, Lightbulb, Handshake } from 'lucide-react';
 import { useUser } from '@/contexts/AuthContext';
 import { useApi } from '@/lib/useApi';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 
 interface ProfileCard {
   id: string;
@@ -101,129 +106,118 @@ export default function DirectoryPage() {
   if (!user) return null;
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col gap-4 px-4 py-10">
+    <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-5 bg-slate-50 px-4 py-10">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Annuaire</h1>
-        <Link href="/profile" className="text-sm underline">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Annuaire</h1>
+          <p className="text-sm text-slate-500">Découvre les fondateurs de la communauté.</p>
+        </div>
+        <Link href="/profile" className="text-sm font-medium text-indigo-600 hover:underline">
           Mon profil
         </Link>
       </div>
 
-      <button
+      <Button
         type="button"
+        variant="outline"
+        className="self-start"
         onClick={() => setFiltersOpen((v) => !v)}
-        className="self-start rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50"
       >
+        <SlidersHorizontal className="h-4 w-4" />
         {filtersOpen ? 'Masquer les filtres' : 'Filtrer'}
-      </button>
+      </Button>
 
       {filtersOpen && (
-        <div className="flex flex-col gap-3 rounded-md border border-gray-200 bg-gray-50 p-4">
-          <input
+        <Card className="flex flex-col gap-3 p-4">
+          <Input
             placeholder="Secteur"
             aria-label="Secteur"
             value={draftSector}
             onChange={(e) => setDraftSector(e.target.value)}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
           />
-          <input
+          <Input
             placeholder="Ville"
             aria-label="Ville"
             value={draftCity}
             onChange={(e) => setDraftCity(e.target.value)}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
           />
-          <input
+          <Input
             placeholder="Compétence"
             aria-label="Compétence"
             value={draftSkill}
             onChange={(e) => setDraftSkill(e.target.value)}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
           />
           <div className="flex gap-2 text-sm">
-            <button
+            <Button
               type="button"
+              variant={filters.role === 'idea' ? 'default' : 'outline'}
+              className="flex-1"
               onClick={() => applyFilters({ role: filters.role === 'idea' ? null : 'idea' })}
-              className={`flex-1 rounded-md border px-3 py-2 ${
-                filters.role === 'idea' ? 'border-black bg-black text-white' : 'border-gray-300'
-              }`}
             >
-              A une idée
-            </button>
-            <button
+              <Lightbulb className="h-4 w-4" />A une idée
+            </Button>
+            <Button
               type="button"
+              variant={filters.role === 'available' ? 'default' : 'outline'}
+              className="flex-1"
               onClick={() =>
                 applyFilters({ role: filters.role === 'available' ? null : 'available' })
               }
-              className={`flex-1 rounded-md border px-3 py-2 ${
-                filters.role === 'available'
-                  ? 'border-black bg-black text-white'
-                  : 'border-gray-300'
-              }`}
             >
+              <Handshake className="h-4 w-4" />
               Dispo pour co-fonder
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
       )}
 
-      {pending && items.length === 0 && <p className="text-sm text-gray-600">Chargement…</p>}
+      {pending && items.length === 0 && <p className="text-sm text-slate-500">Chargement…</p>}
 
       {!pending && error && items.length === 0 && (
         <div className="flex flex-col gap-2 text-sm text-red-600">
           <p>Impossible de charger l&apos;annuaire pour le moment.</p>
-          <button type="button" onClick={() => void refresh()} className="self-start underline">
+          <button
+            type="button"
+            onClick={() => void refresh()}
+            className="cursor-pointer self-start underline"
+          >
             Réessayer
           </button>
         </div>
       )}
 
       {!pending && !error && items.length === 0 && (
-        <p className="text-sm text-gray-600">Aucun profil ne correspond à ces critères.</p>
+        <p className="text-sm text-slate-500">Aucun profil ne correspond à ces critères.</p>
       )}
 
       <ul className="flex flex-col gap-3">
         {items.map((p) => (
           <li key={p.id}>
-            <Link
-              href={`/directory/${p.id}`}
-              className="block rounded-md border border-gray-200 p-4 hover:bg-gray-50"
-            >
-              <p className="line-clamp-2 text-sm">{p.bio}</p>
-              <p className="mt-1 text-xs text-gray-500">
-                {p.city} · {p.sector}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-1">
-                {p.skills.map((s) => (
-                  <span key={s} className="rounded-full bg-gray-100 px-2 py-0.5 text-xs">
-                    {s}
-                  </span>
-                ))}
-                {p.hasIdea && (
-                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
-                    A une idée
-                  </span>
-                )}
-                {p.availableToCofound && (
-                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">
-                    Dispo pour co-fonder
-                  </span>
-                )}
-              </div>
+            <Link href={`/directory/${p.id}`}>
+              <Card className="p-4 transition-colors hover:border-indigo-200 hover:bg-indigo-50/40">
+                <p className="line-clamp-2 text-sm text-slate-700">{p.bio}</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {p.city} · {p.sector}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {p.skills.map((s) => (
+                    <Badge key={s} variant="secondary">
+                      {s}
+                    </Badge>
+                  ))}
+                  {p.hasIdea && <Badge>A une idée</Badge>}
+                  {p.availableToCofound && <Badge variant="success">Dispo pour co-fonder</Badge>}
+                </div>
+              </Card>
             </Link>
           </li>
         ))}
       </ul>
 
       {data?.nextCursor && (
-        <button
-          type="button"
-          onClick={loadMore}
-          disabled={loading}
-          className="rounded-md border border-gray-300 px-5 py-2.5 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
-        >
+        <Button type="button" variant="outline" onClick={loadMore} disabled={loading}>
           {loading ? 'Chargement…' : 'Charger plus'}
-        </button>
+        </Button>
       )}
     </main>
   );
