@@ -9,6 +9,7 @@ import { useApi } from '@/lib/useApi';
 import { api, ApiError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -20,6 +21,12 @@ interface Task {
   status: 'TODO' | 'IN_PROGRESS' | 'DONE';
   assigneeId: string | null;
   dueAt: string | null;
+}
+
+interface Member {
+  userId: string;
+  email: string;
+  name: string | null;
 }
 
 interface ProjectDetail {
@@ -48,6 +55,11 @@ const NEXT_STATUS: Record<Task['status'], Task['status']> = {
   DONE: 'TODO',
 };
 
+function memberLabel(members: Member[], userId: string): string {
+  const match = members.find((m) => m.userId === userId);
+  return match ? (match.name ?? match.email) : 'Membre inconnu';
+}
+
 export default function ProjectDetailPage() {
   const { organizationId, slug, loading: wsLoading, notFound: wsNotFound } = useWorkspace();
   const params = useParams<{ projectId: string }>();
@@ -58,7 +70,17 @@ export default function ProjectDetailPage() {
     skip: !organizationId,
   });
 
+  // Populates the assignee picker. Without it "Mes tâches" and the dashboard's deadline card have
+  // no way to ever be non-empty, since task creation is the only place assignment can happen.
+  const { data: membersData } = useApi<{ members: Member[] }>(
+    organizationId ? `/api/organizations/${organizationId}/members` : '',
+    { skip: !organizationId },
+  );
+  const members = membersData?.members ?? [];
+
   const [title, setTitle] = useState('');
+  const [assigneeId, setAssigneeId] = useState('');
+  const [dueDate, setDueDate] = useState('');
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -68,8 +90,19 @@ export default function ProjectDetailPage() {
     setCreating(true);
     setFormError(null);
     try {
-      await api(`${path}/tasks`, { method: 'POST', body: { title } });
+      await api(`${path}/tasks`, {
+        method: 'POST',
+        body: {
+          title,
+          // Omit rather than send empty strings — the Zod schema wants a cuid or null.
+          ...(assigneeId ? { assigneeId } : {}),
+          // <input type="date"> gives "YYYY-MM-DD"; the route's schema wants a full ISO datetime.
+          ...(dueDate ? { dueAt: new Date(`${dueDate}T00:00:00.000Z`).toISOString() } : {}),
+        },
+      });
       setTitle('');
+      setAssigneeId('');
+      setDueDate('');
       await refresh();
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : 'Erreur inconnue');
@@ -137,17 +170,48 @@ export default function ProjectDetailPage() {
           <CardDescription>Ajoute une tâche à ce projet.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={onCreateTask} className="flex gap-2">
-            <Input
-              placeholder="Titre de la tâche"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-            />
-            <Button type="submit" disabled={creating}>
-              <Plus className="h-4 w-4" />
-              Ajouter
-            </Button>
+          <form onSubmit={onCreateTask} className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="task-title">Titre</Label>
+              <Input
+                id="task-title"
+                placeholder="Titre de la tâche"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+              />
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="flex flex-1 flex-col gap-1.5">
+                <Label htmlFor="task-assignee">Assigné à</Label>
+                <select
+                  id="task-assignee"
+                  value={assigneeId}
+                  onChange={(e) => setAssigneeId(e.target.value)}
+                  className="h-9 cursor-pointer rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900"
+                >
+                  <option value="">Non assigné</option>
+                  {members.map((member) => (
+                    <option key={member.userId} value={member.userId}>
+                      {member.name ?? member.email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-1 flex-col gap-1.5">
+                <Label htmlFor="task-due">Échéance</Label>
+                <Input
+                  id="task-due"
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                />
+              </div>
+              <Button type="submit" disabled={creating}>
+                <Plus className="h-4 w-4" />
+                {creating ? 'Ajout…' : 'Ajouter'}
+              </Button>
+            </div>
           </form>
           {formError && (
             <Alert variant="destructive" className="mt-3">
@@ -164,7 +228,16 @@ export default function ProjectDetailPage() {
         {project.tasks.map((task) => (
           <Card key={task.id}>
             <CardContent className="flex items-center justify-between gap-4 p-4">
-              <span className="text-sm font-medium text-slate-900">{task.title}</span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-slate-900">{task.title}</p>
+                {(task.assigneeId || task.dueAt) && (
+                  <p className="truncate text-xs text-slate-500">
+                    {task.assigneeId && memberLabel(members, task.assigneeId)}
+                    {task.assigneeId && task.dueAt && ' · '}
+                    {task.dueAt && new Date(task.dueAt).toLocaleDateString('fr-FR')}
+                  </p>
+                )}
+              </div>
               <button type="button" onClick={() => onCycleStatus(task)} className="cursor-pointer">
                 <Badge variant={STATUS_BADGE_VARIANT[task.status]}>
                   {STATUS_LABEL[task.status]}
