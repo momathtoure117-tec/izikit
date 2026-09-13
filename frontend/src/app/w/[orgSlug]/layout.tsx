@@ -3,9 +3,19 @@
 import { type ReactNode, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, FolderKanban, ListChecks, Users, ChevronDown, Plus } from 'lucide-react';
+import {
+  LayoutDashboard,
+  FolderKanban,
+  ListChecks,
+  Users,
+  ChevronDown,
+  Plus,
+  AlertCircle,
+} from 'lucide-react';
 import { WorkspaceProvider, useWorkspace } from '@/contexts/WorkspaceContext';
 import { cn } from '@/lib/utils';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 
 // Note: the spec's original mockup listed "Tâches" and "Mes tâches" as two
 // separate items, but the only tasks route this sub-project builds is the
@@ -22,9 +32,28 @@ const NAV_ITEMS = [
 ];
 
 function Sidebar() {
-  const { slug, name, organizations, loading, notFound } = useWorkspace();
+  const { slug, name, organizations, loading, notFound, error } = useWorkspace();
   const pathname = usePathname();
   const [switcherOpen, setSwitcherOpen] = useState(false);
+
+  if (error) {
+    return (
+      <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white p-4">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <AlertDescription>Impossible de charger votre espace de travail.</AlertDescription>
+        </Alert>
+        <Button
+          type="button"
+          variant="outline"
+          className="mt-3 w-full"
+          onClick={() => window.location.reload()}
+        >
+          Réessayer
+        </Button>
+      </aside>
+    );
+  }
 
   return (
     <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white">
