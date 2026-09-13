@@ -207,8 +207,8 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Link href="/profile" className="text-center text-sm text-slate-600 hover:underline">
-        Retour au profil
+      <Link href="/onboarding" className="text-center text-sm text-slate-600 hover:underline">
+        Retour à mon espace de travail
       </Link>
     </main>
   );
