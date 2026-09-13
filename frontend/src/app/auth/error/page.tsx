@@ -16,6 +16,9 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { XCircle } from 'lucide-react';
+import { buttonVariants } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 
 const ERROR_MESSAGES: Record<string, string> = {
   GOOGLE_EMAIL_NOT_VERIFIED:
@@ -37,21 +40,25 @@ function AuthErrorBody() {
     'Une erreur inconnue est survenue pendant la connexion. Réessayez.';
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-4">
-      <h1 className="text-2xl font-bold">Échec de connexion</h1>
-      <p className="text-sm text-gray-700">{message}</p>
-      {code && <p className="font-mono text-xs text-gray-400">code: {code}</p>}
-      <div className="flex flex-col gap-2">
-        <Link
-          href="/login"
-          className="rounded-md bg-black px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-gray-800"
-        >
-          Retour à la connexion
-        </Link>
-        <Link href="/" className="text-center text-sm text-gray-600 underline">
-          Accueil
-        </Link>
-      </div>
+    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
+      <Card className="w-full max-w-md">
+        <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
+            <XCircle className="h-6 w-6 text-red-600" />
+          </div>
+          <h1 className="text-xl font-semibold tracking-tight text-slate-900">
+            Échec de connexion
+          </h1>
+          <p className="text-sm text-slate-600">{message}</p>
+          {code && <p className="font-mono text-xs text-slate-400">code: {code}</p>}
+          <Link href="/login" className={buttonVariants({ className: 'mt-2 w-full' })}>
+            Retour à la connexion
+          </Link>
+          <Link href="/" className={buttonVariants({ variant: 'ghost', className: 'mt-1' })}>
+            Accueil
+          </Link>
+        </CardContent>
+      </Card>
     </main>
   );
 }
