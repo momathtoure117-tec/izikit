@@ -66,7 +66,6 @@ export async function GET(
         where: { organizationId: orgId, status: 'ACTIVE' },
         select: { id: true, name: true, tasks: { select: { status: true } } },
         orderBy: { updatedAt: 'desc' },
-        take: 5,
       }),
     ]);
 
