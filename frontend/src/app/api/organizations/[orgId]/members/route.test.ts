@@ -73,6 +73,23 @@ describe('POST /api/organizations/[orgId]/members', () => {
     expect(body.error).toBe('USER_NOT_FOUND');
   });
 
+  it('returns 429 TOO_MANY_INVITE_ATTEMPTS when the per-email limit is hit', async () => {
+    // The 404/409/201 split makes this endpoint an account-existence oracle; the per-email
+    // limiter caps how often one address can be probed.
+    mockRequireOrgRole.mockResolvedValue(adminCtx);
+    prismaMock.user.findUnique.mockResolvedValue(null as never);
+
+    const calls = await Promise.all(
+      Array.from({ length: 6 }, () =>
+        POST(makePost({ email: 'rate-target@test.local' }), ctxWith('org_1')),
+      ),
+    );
+    const limited = calls.find((r) => r.status === 429);
+    expect(limited, 'expected at least one 429 across 6 invites of the same email').toBeDefined();
+    const body = (await limited!.json()) as { error: string };
+    expect(body.error).toBe('TOO_MANY_INVITE_ATTEMPTS');
+  });
+
   it('returns 409 ALREADY_MEMBER on a unique-constraint collision', async () => {
     mockRequireOrgRole.mockResolvedValueOnce(adminCtx);
     prismaMock.user.findUnique.mockResolvedValueOnce({ id: 'u2', email: 'u2@test.local' } as never);

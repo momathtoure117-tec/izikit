@@ -7,9 +7,33 @@ import { verifyCsrf } from '@/lib/server/auth';
 import { requireOrgRole } from '@/lib/server/middleware';
 import { prisma } from '@/lib/server/prisma';
 import { zEmail } from '@/lib/server/zod-helpers';
+import { redis } from '@/lib/server/redis';
+import { createEmailLimiter } from '@/lib/server/middleware/rate-limit-by-email';
 import { makeRequestContext, withRequestContext } from '@/lib/server/observability/request-context';
 
 const InviteBody = z.object({ email: zEmail });
+
+// The invite endpoint distinguishes USER_NOT_FOUND (404) from ALREADY_MEMBER (409), which makes
+// it an account-existence oracle for any authenticated caller (anyone can self-create a workspace
+// and become its OWNER). That undercuts the enumeration-resistant signup contract, so the endpoint
+// is rate limited on two axes:
+//   - per invited email: caps repeated probing of one address;
+//   - per calling user: caps a scan across many addresses, which the per-email bucket cannot see.
+const inviteLimiter = createEmailLimiter(redis ? { redis } : {}, {
+  bucket: 'org:invite',
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: Number(process.env.ORG_INVITE_RATE_LIMIT_MAX ?? 5),
+  code: 'TOO_MANY_INVITE_ATTEMPTS',
+  message: 'Too many invite attempts. Try again later.',
+});
+
+const inviteScanLimiter = createEmailLimiter(redis ? { redis } : {}, {
+  bucket: 'org:invite:caller',
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: Number(process.env.ORG_INVITE_CALLER_RATE_LIMIT_MAX ?? 30),
+  code: 'TOO_MANY_INVITE_ATTEMPTS',
+  message: 'Too many invite attempts. Try again later.',
+});
 
 export async function GET(
   req: NextRequest,
@@ -61,6 +85,11 @@ export async function POST(
         { status: 400, headers: { 'x-request-id': reqCtx.requestId } },
       );
     }
+
+    const rateFail =
+      (await inviteLimiter.check(req, parsed.data.email)) ??
+      (await inviteScanLimiter.check(req, auth.user.sub));
+    if (rateFail) return rateFail;
 
     const target = await prisma.user.findUnique({
       where: { email: parsed.data.email },
