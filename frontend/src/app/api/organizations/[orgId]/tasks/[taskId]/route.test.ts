@@ -47,6 +47,31 @@ describe('PATCH /api/organizations/[orgId]/tasks/[taskId]', () => {
     expect(res.status).toBe(200);
   });
 
+  it('omits unset fields from updateMany payload', async () => {
+    prismaMock.task.updateMany.mockResolvedValueOnce({ count: 1 } as never);
+    prismaMock.task.findFirst.mockResolvedValueOnce({
+      id: 't1',
+      title: 'Existing title',
+      status: 'IN_PROGRESS',
+      assigneeId: null,
+      dueAt: null,
+    } as never);
+
+    await PATCH(
+      new NextRequest('http://test/api/organizations/org_1/tasks/t1', {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'DONE' }),
+      }),
+      ctxWith('org_1', 't1'),
+    );
+
+    expect(prismaMock.task.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { status: 'DONE' },
+      }),
+    );
+  });
+
   it('returns 404 TASK_NOT_FOUND when nothing was updated', async () => {
     prismaMock.task.updateMany.mockResolvedValueOnce({ count: 0 } as never);
     const res = await PATCH(
