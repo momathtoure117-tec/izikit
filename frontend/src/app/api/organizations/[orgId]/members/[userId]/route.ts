@@ -11,7 +11,23 @@ import { makeRequestContext, withRequestContext } from '@/lib/server/observabili
 
 const RoleBody = z.object({ role: z.enum(['OWNER', 'ADMIN', 'MEMBER']) });
 
-type Discriminator = { kind: 'NOT_FOUND' } | { kind: 'LAST_OWNER' } | { kind: 'OK'; role: string };
+type Discriminator =
+  | { kind: 'NOT_FOUND' }
+  | { kind: 'LAST_OWNER' }
+  | { kind: 'OWNER_REQUIRED' }
+  | { kind: 'OK'; role: string };
+
+/**
+ * Owner-tier transitions are OWNER-only.
+ *
+ * `requireOrgRole(orgId, 'ADMIN')` alone would let a plain ADMIN promote themselves to OWNER or
+ * demote/remove a sitting OWNER, collapsing the documented MEMBER < ADMIN < OWNER hierarchy into
+ * two tiers. So any operation that *touches* the OWNER tier — the target already is one, or the
+ * request would make one — additionally requires the caller to be an OWNER.
+ */
+function ownerTierTouched(targetRole: string, requestedRole?: string): boolean {
+  return targetRole === 'OWNER' || requestedRole === 'OWNER';
+}
 
 export async function PATCH(
   req: NextRequest,
@@ -41,6 +57,10 @@ export async function PATCH(
       });
       if (!target) return { kind: 'NOT_FOUND' as const };
 
+      if (ownerTierTouched(target.role, parsed.data.role) && auth.orgMember.role !== 'OWNER') {
+        return { kind: 'OWNER_REQUIRED' as const };
+      }
+
       if (target.role === 'OWNER' && parsed.data.role !== 'OWNER') {
         const owners = await countOwners(tx, orgId);
         if (owners <= 1) return { kind: 'LAST_OWNER' as const };
@@ -58,6 +78,12 @@ export async function PATCH(
       return NextResponse.json(
         { error: 'USER_NOT_FOUND', message: 'Member not found' },
         { status: 404, headers: { 'x-request-id': reqCtx.requestId } },
+      );
+    }
+    if (result.kind === 'OWNER_REQUIRED') {
+      return NextResponse.json(
+        { error: 'ORG_ROLE_INSUFFICIENT', message: 'Insufficient organization role' },
+        { status: 403, headers: { 'x-request-id': reqCtx.requestId } },
       );
     }
     if (result.kind === 'LAST_OWNER') {
@@ -93,6 +119,10 @@ export async function DELETE(
       });
       if (!target) return { kind: 'NOT_FOUND' as const };
 
+      if (ownerTierTouched(target.role) && auth.orgMember.role !== 'OWNER') {
+        return { kind: 'OWNER_REQUIRED' as const };
+      }
+
       if (target.role === 'OWNER') {
         const owners = await countOwners(tx, orgId);
         if (owners <= 1) return { kind: 'LAST_OWNER' as const };
@@ -108,6 +138,12 @@ export async function DELETE(
       return NextResponse.json(
         { error: 'USER_NOT_FOUND', message: 'Member not found' },
         { status: 404, headers: { 'x-request-id': reqCtx.requestId } },
+      );
+    }
+    if (result.kind === 'OWNER_REQUIRED') {
+      return NextResponse.json(
+        { error: 'ORG_ROLE_INSUFFICIENT', message: 'Insufficient organization role' },
+        { status: 403, headers: { 'x-request-id': reqCtx.requestId } },
       );
     }
     if (result.kind === 'LAST_OWNER') {
