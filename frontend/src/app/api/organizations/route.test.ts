@@ -46,6 +46,31 @@ describe('POST /api/organizations', () => {
     expect(body.organization.role).toBe('OWNER');
   });
 
+  it('retries with a disambiguated slug when the first slug collides (P2002)', async () => {
+    // Each ensureUniqueSlug attempt must open its OWN transaction — retrying inside a single
+    // aborted Postgres transaction would surface as 25P02 and bubble up as a 500.
+    prismaMock.$transaction.mockImplementation(async (fn: unknown) =>
+      (fn as (tx: typeof prismaMock) => Promise<unknown>)(prismaMock),
+    );
+    prismaMock.organization.create
+      .mockRejectedValueOnce(
+        Object.assign(new Error('Unique constraint failed'), {
+          code: 'P2002',
+        }) as never,
+      )
+      .mockResolvedValueOnce({ id: 'org_2', slug: 'acme-2', name: 'Acme' } as never);
+    prismaMock.organizationMember.create.mockResolvedValue({} as never);
+
+    const res = await POST(makePost({ name: 'Acme' }));
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { organization: { id: string; slug: string; role: string } };
+    expect(body.organization.slug).toBe('acme-2');
+    expect(body.organization.id).toBe('org_2');
+    expect(prismaMock.organization.create).toHaveBeenCalledTimes(2);
+    // Two separate transactions, one per attempt.
+    expect(prismaMock.$transaction).toHaveBeenCalledTimes(2);
+  });
+
   it('returns 400 VALIDATION_FAILED for an empty name', async () => {
     const res = await POST(makePost({ name: '' }));
     expect(res.status).toBe(400);

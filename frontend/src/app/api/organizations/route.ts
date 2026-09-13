@@ -31,20 +31,26 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     const base = slugify(parsed.data.name) || 'workspace';
-    const organization = await prisma.$transaction(async (tx) => {
-      let created: { id: string; slug: string; name: string } | undefined;
-      const slug = await ensureUniqueSlug(base, async (candidate) => {
-        created = await tx.organization.create({
+
+    // The slug-collision retry MUST stay OUTSIDE the interactive transaction: on Postgres a
+    // failed statement aborts the whole transaction (no per-statement savepoints), so a retry
+    // issued inside it would fail with 25P02 instead of succeeding. Each attempt therefore
+    // opens its own transaction, which still creates the Organization + OWNER member atomically.
+    let created: { id: string; slug: string; name: string } | undefined;
+    const slug = await ensureUniqueSlug(base, async (candidate) => {
+      created = await prisma.$transaction(async (tx) => {
+        const org = await tx.organization.create({
           data: { slug: candidate, name: parsed.data.name, ownerId: auth.user.sub },
           select: { id: true, slug: true, name: true },
         });
+        await tx.organizationMember.create({
+          data: { organizationId: org.id, userId: auth.user.sub, role: 'OWNER' },
+        });
+        return org;
       });
-      if (!created) throw new Error('organization creation failed');
-      await tx.organizationMember.create({
-        data: { organizationId: created.id, userId: auth.user.sub, role: 'OWNER' },
-      });
-      return { ...created, slug };
     });
+    if (!created) throw new Error('organization creation failed');
+    const organization = { ...created, slug };
 
     return NextResponse.json(
       { organization: { ...organization, role: 'OWNER' } },
