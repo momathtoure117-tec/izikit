@@ -63,9 +63,9 @@ model Document {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   projectId      String
   project        Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  name           String
+  fileUploadId   String       @unique
+  fileUpload     FileUpload   @relation(fields: [fileUploadId], references: [id], onDelete: Restrict)
   url            String
-  cloudinaryPublicId String
   uploadedById   String
   uploadedBy     User         @relation("DocumentUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
   createdAt      DateTime     @default(now())
@@ -75,11 +75,22 @@ model Document {
 }
 ```
 
-Reuses the existing `/api/upload` route + `lib/server/upload/*` (Cloudinary,
-magic-byte sniffing, `UPLOAD_ALLOWED_MIME`) for the actual file bytes — a
-`Document` row is created after a successful upload, storing the returned
-Cloudinary URL + public ID (needed so deletion can also remove the asset from
-Cloudinary via its Admin API — `cloudinary.uploader.destroy(publicId)`).
+**Ruling — reuse `FileUpload`, don't duplicate it**: the starter already has a
+generic `FileUpload` model (`id, userId, key` [Cloudinary public_id],
+`filename, mimeType, sizeBytes, createdAt`), populated by the existing
+`POST /api/upload` route on every upload regardless of feature. `Document` is
+the workspace-specific "this upload is attached to this project" join — it
+references `FileUpload` by id (`fileUploadId`, `@unique` — one Document per
+upload) rather than re-storing `filename`/`mimeType`/`sizeBytes`/the
+Cloudinary public id. The one field genuinely worth storing on `Document`
+itself is `url` (Cloudinary's `secure_url`), because `FileUpload` does NOT
+persist it — `/api/upload`'s response includes `url` only in that single
+response payload, reconstructed from Cloudinary's own reply, never written to
+the `FileUpload` row. The client-side flow is therefore: upload to
+`/api/upload` (existing route, unchanged) → get back `{ id, url, filename,
+... }` → call `POST .../documents` with `{ fileUploadId: id, url }` to attach
+it to a project. `FileUpload` gains a back-relation `document Document?`
+(optional — most uploads, e.g. avatars, never become a Document).
 
 ## API routes
 
@@ -101,21 +112,25 @@ All routes: `export const runtime = 'nodejs'`, `withRequestContext`,
 
 **Documents**
 - `POST /api/organizations/[orgId]/projects/[projectId]/documents` — body
-  `{ name, url, cloudinaryPublicId }` (the client uploads to `/api/upload`
-  first, then calls this to record the row — matches the two-step pattern
-  already implicit in the starter's upload route, which returns a URL/public
-  ID for the caller to persist wherever it belongs)
+  `{ fileUploadId, url }` (the client uploads to `/api/upload` first — existing
+  route, unchanged — then calls this to attach the resulting upload to a
+  project). Validates `fileUploadId` refers to a `FileUpload` row owned by the
+  calling user (`FileUpload.userId === auth.user.sub`) and not already
+  attached to a Document (the `@unique` constraint enforces this at the DB
+  level; the route checks first for a clean 409, e.g. `ALREADY_ATTACHED`,
+  rather than surfacing a raw P2002)
 - `GET /api/organizations/[orgId]/documents` — all documents across the
-  workspace's projects, each annotated with `project: {id, name}`, for the
-  "Fichiers" page
+  workspace's projects, each annotated with `project: {id, name}` and the
+  joined `fileUpload: {filename, mimeType, sizeBytes}`, for the "Fichiers" page
 - `GET /api/organizations/[orgId]/projects/[projectId]/documents` — documents
   scoped to one project, for a "Documents" tab on the project detail page
 - `DELETE /api/organizations/[orgId]/documents/[documentId]` — uploader or
-  ADMIN/OWNER only (same ruling as calendar events); deletes the Cloudinary
-  asset via `cloudinary.uploader.destroy` before removing the row (if the
-  Cloudinary call fails, still delete the row and log a warning — an orphaned
-  Cloudinary asset is a cheap, recoverable cost; a Document row that can never
-  be deleted because Cloudinary is briefly unreachable is not acceptable)
+  ADMIN/OWNER only (same ruling as calendar events). Attempts
+  `cloudinary.uploader.destroy(fileUpload.key)` first (best-effort — catch and
+  log a warning on failure, do NOT abort the deletion), then deletes the
+  `Document` row and its `FileUpload` row. An orphaned Cloudinary asset is a
+  cheap, recoverable cost; a Document row that can never be deleted because
+  Cloudinary is briefly unreachable is not acceptable.
 
 ## Error codes (new)
 
