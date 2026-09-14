@@ -46,11 +46,13 @@ model User {
   // Multi-tenancy is opt-in per project: by default no resource is org-scoped.
   // Apps that need it (marketplace, B2B SaaS, classifieds) wire owner relations
   // on their domain models.
-  ownedOrganizations Organization[]      @relation("OrgOwner")
-  memberships        OrganizationMember[] @relation("OrgMembership")
-  projectsCreated    Project[]            @relation("ProjectCreator")
-  tasksCreated       Task[]               @relation("TaskCreator")
-  tasksAssigned      Task[]               @relation("TaskAssignee")
+  ownedOrganizations    Organization[]      @relation("OrgOwner")
+  memberships           OrganizationMember[] @relation("OrgMembership")
+  projectsCreated       Project[]            @relation("ProjectCreator")
+  tasksCreated          Task[]               @relation("TaskCreator")
+  tasksAssigned         Task[]               @relation("TaskAssignee")
+  calendarEventsCreated CalendarEvent[]      @relation("CalendarEventCreator")
+  documentsUploaded     Document[]           @relation("DocumentUploader")
 
   @@index([email])
   @@index([role])
@@ -98,16 +100,18 @@ model AdminAction {
 // used as a stable URL segment.
 // ───────────────────────────────────────────────────────────────────────
 model Organization {
-  id        String   @id @default(cuid())
-  slug      String   @unique
-  name      String
-  ownerId   String
-  owner     User     @relation("OrgOwner", fields: [ownerId], references: [id], onDelete: Restrict)
-  members   OrganizationMember[]
-  projects  Project[]
-  tasks     Task[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(cuid())
+  slug           String   @unique
+  name           String
+  ownerId        String
+  owner          User     @relation("OrgOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  members        OrganizationMember[]
+  projects       Project[]
+  tasks          Task[]
+  calendarEvents CalendarEvent[]
+  documents      Document[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@index([ownerId])
 }
@@ -138,6 +142,7 @@ model Project {
   createdById    String
   createdBy      User         @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Restrict)
   tasks          Task[]
+  documents      Document[]
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -164,6 +169,39 @@ model Task {
   @@index([organizationId, assigneeId])
   @@index([projectId])
   @@index([status])
+}
+
+model CalendarEvent {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  title          String
+  description    String?
+  startAt        DateTime
+  endAt          DateTime?
+  createdById    String
+  createdBy      User         @relation("CalendarEventCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId, startAt])
+}
+
+model Document {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  projectId      String
+  project        Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fileUploadId   String       @unique
+  fileUpload     FileUpload   @relation(fields: [fileUploadId], references: [id], onDelete: Restrict)
+  url            String
+  uploadedById   String
+  uploadedBy     User         @relation("DocumentUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+  @@index([projectId])
 }
 
 // ───────────────────────────────────────────────────────────────────────
@@ -216,6 +254,7 @@ model FileUpload {
   filename  String
   mimeType  String
   sizeBytes Int
+  document  Document?
   createdAt DateTime @default(now())
 
   @@index([userId])
