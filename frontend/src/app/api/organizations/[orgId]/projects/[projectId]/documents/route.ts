@@ -90,3 +90,31 @@ export async function POST(
     );
   });
 }
+
+export async function GET(
+  req: NextRequest,
+  ctx: { params: Promise<{ orgId: string; projectId: string }> },
+): Promise<NextResponse> {
+  const reqCtx = makeRequestContext(req.headers);
+  return withRequestContext(reqCtx, async () => {
+    const { orgId, projectId } = await ctx.params;
+    const auth = await requireOrgRole(orgId, 'MEMBER');
+    if (auth instanceof NextResponse) return auth;
+
+    const documents = await prisma.document.findMany({
+      where: { organizationId: orgId, projectId },
+      select: {
+        id: true,
+        url: true,
+        createdAt: true,
+        fileUpload: { select: { filename: true, mimeType: true, sizeBytes: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return NextResponse.json(
+      { documents },
+      { status: 200, headers: { 'x-request-id': reqCtx.requestId } },
+    );
+  });
+}

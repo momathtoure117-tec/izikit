@@ -6,7 +6,7 @@ vi.mock('@/lib/server/auth', () => ({ verifyCsrf: vi.fn(() => null) }));
 vi.mock('@/lib/server/middleware', () => ({ requireOrgRole: vi.fn() }));
 
 import { requireOrgRole } from '@/lib/server/middleware';
-import { POST } from './route';
+import { POST, GET } from './route';
 
 const mockRequireOrgRole = vi.mocked(requireOrgRole);
 const memberCtx = {
@@ -109,5 +109,26 @@ describe('POST /api/organizations/[orgId]/projects/[projectId]/documents', () =>
     expect(res.status).toBe(409);
     const body = (await res.json()) as { error: string };
     expect(body.error).toBe('ALREADY_ATTACHED');
+  });
+});
+
+describe('GET /api/organizations/[orgId]/projects/[projectId]/documents', () => {
+  it('lists documents for the project', async () => {
+    prismaMock.document.findMany.mockResolvedValueOnce([
+      {
+        id: 'doc_1',
+        url: 'https://x',
+        createdAt: new Date('2026-10-01T00:00:00Z'),
+        fileUpload: { filename: 'brief.pdf', mimeType: 'application/pdf', sizeBytes: 1024 },
+      },
+    ] as never);
+
+    const res = await GET(
+      new NextRequest('http://test/api/organizations/org_1/projects/proj_1/documents'),
+      ctxWith('org_1', 'proj_1'),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { documents: unknown[] };
+    expect(body.documents).toHaveLength(1);
   });
 });
