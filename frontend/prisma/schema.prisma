@@ -53,6 +53,8 @@ model User {
   tasksAssigned         Task[]               @relation("TaskAssignee")
   calendarEventsCreated CalendarEvent[]      @relation("CalendarEventCreator")
   documentsUploaded     Document[]           @relation("DocumentUploader")
+  messagesAuthored      Message[]            @relation("MessageAuthor")
+  notesAuthored         Note[]               @relation("NoteAuthor")
 
   @@index([email])
   @@index([role])
@@ -110,6 +112,8 @@ model Organization {
   tasks          Task[]
   calendarEvents CalendarEvent[]
   documents      Document[]
+  messages       Message[]
+  notes          Note[]
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -143,6 +147,8 @@ model Project {
   createdBy      User         @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Restrict)
   tasks          Task[]
   documents      Document[]
+  messages       Message[]
+  notes          Note[]
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -202,6 +208,36 @@ model Document {
 
   @@index([organizationId])
   @@index([projectId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  projectId      String?
+  project        Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  authorId       String
+  author         User         @relation("MessageAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  body           String
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, projectId, createdAt])
+}
+
+model Note {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  projectId      String?
+  project        Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  authorId       String
+  author         User         @relation("NoteAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  title          String
+  body           String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId, projectId])
 }
 
 // ───────────────────────────────────────────────────────────────────────
