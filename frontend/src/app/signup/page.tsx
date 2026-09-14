@@ -35,7 +35,7 @@ export default function SignupPage() {
       // Pre-fill the email so they don't have to re-type it.
       router.push(`/verify-email?email=${encodeURIComponent(email)}`);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Unknown error');
+      setError(err instanceof ApiError ? err.message : 'Erreur inconnue');
     } finally {
       setSubmitting(false);
     }
@@ -45,8 +45,8 @@ export default function SignupPage() {
     <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-2xl">Sign up</CardTitle>
-          <CardDescription>Create an account to get started.</CardDescription>
+          <CardTitle className="text-2xl">Créer un compte</CardTitle>
+          <CardDescription>Rejoins CoFound Africa pour trouver ton co-fondateur.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
           <form onSubmit={onSubmit} className="flex flex-col gap-4">
@@ -62,7 +62,7 @@ export default function SignupPage() {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Mot de passe</Label>
               <Input
                 id="password"
                 type="password"
@@ -72,7 +72,7 @@ export default function SignupPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
-              <span className="text-xs text-slate-500">At least 8 characters.</span>
+              <span className="text-xs text-slate-500">Au moins 8 caractères.</span>
             </div>
             {error && (
               <Alert variant="destructive" role="alert">
@@ -81,13 +81,13 @@ export default function SignupPage() {
               </Alert>
             )}
             <Button type="submit" disabled={submitting} className="w-full">
-              {submitting ? 'Creating…' : 'Create account'}
+              {submitting ? 'Création…' : 'Créer le compte'}
             </Button>
           </form>
 
           <div className="flex items-center gap-3 text-xs font-medium tracking-wider text-slate-400 uppercase">
             <span className="h-px flex-1 bg-slate-200" />
-            or
+            ou
             <span className="h-px flex-1 bg-slate-200" />
           </div>
 
@@ -113,13 +113,13 @@ export default function SignupPage() {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
               />
             </svg>
-            Continue with Google
+            Continuer avec Google
           </a>
 
           <p className="text-center text-sm text-slate-600">
-            Already have an account?{' '}
+            Déjà un compte ?{' '}
             <Link href="/login" className="font-medium text-indigo-600 hover:underline">
-              Log in
+              Se connecter
             </Link>
           </p>
         </CardContent>
