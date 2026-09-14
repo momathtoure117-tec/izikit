@@ -8,6 +8,8 @@ import {
   FolderKanban,
   ListChecks,
   Users,
+  Calendar,
+  FileText,
   ChevronDown,
   Plus,
   AlertCircle,
@@ -27,8 +29,10 @@ import { Button } from '@/components/ui/button';
 const NAV_ITEMS = [
   { label: 'Tableau de bord', href: 'dashboard', icon: LayoutDashboard },
   { label: 'Projets', href: 'projects', icon: FolderKanban },
+  { label: 'Calendrier', href: 'calendar', icon: Calendar },
   { label: 'Mes tâches', href: 'tasks', icon: ListChecks },
   { label: 'Équipe', href: 'team', icon: Users },
+  { label: 'Fichiers', href: 'files', icon: FileText },
 ];
 
 function Sidebar() {
