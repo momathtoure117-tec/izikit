@@ -52,15 +52,18 @@ export async function DELETE(
       );
     }
 
-    try {
-      await destroyUpload(doc.fileUpload.key);
-    } catch (err) {
-      log.warn('document.destroyUpload failed, continuing with DB delete', { err, documentId });
-    }
-
     await prisma.document.delete({ where: { id: doc.id } });
     await prisma.fileUpload.delete({ where: { id: doc.fileUploadId } });
 
-    return new NextResponse(null, { status: 204, headers: { 'x-request-id': reqCtx.requestId } });
+    try {
+      await destroyUpload(doc.fileUpload.key);
+    } catch (err) {
+      log.warn('document.destroyUpload failed after DB delete', { err, documentId });
+    }
+
+    return NextResponse.json(
+      { success: true },
+      { status: 200, headers: { 'x-request-id': reqCtx.requestId } },
+    );
   });
 }

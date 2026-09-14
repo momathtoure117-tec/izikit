@@ -29,6 +29,7 @@ describe('GET /api/organizations/[orgId]/documents', () => {
         id: 'doc_1',
         url: 'https://x',
         createdAt: new Date('2026-10-01T00:00:00Z'),
+        uploadedById: 'u1',
         project: { id: 'proj_1', name: 'Site web' },
         fileUpload: { filename: 'brief.pdf', mimeType: 'application/pdf', sizeBytes: 1024 },
       },

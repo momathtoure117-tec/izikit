@@ -152,6 +152,9 @@ export async function DELETE(
         { status: 409, headers: { 'x-request-id': reqCtx.requestId } },
       );
     }
-    return new NextResponse(null, { status: 204, headers: { 'x-request-id': reqCtx.requestId } });
+    return NextResponse.json(
+      { success: true },
+      { status: 200, headers: { 'x-request-id': reqCtx.requestId } },
+    );
   });
 }

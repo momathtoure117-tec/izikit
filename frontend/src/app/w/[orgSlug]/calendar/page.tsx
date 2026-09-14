@@ -116,7 +116,11 @@ export default function CalendarPage() {
       });
       await refresh();
     } catch (err) {
-      setMutationError(err instanceof ApiError ? err.message : 'Erreur réseau.');
+      if (err instanceof ApiError && err.code === 'FORBIDDEN_NOT_OWNER') {
+        setMutationError('Seul le créateur ou un administrateur peut supprimer cet événement.');
+      } else {
+        setMutationError('Erreur réseau.');
+      }
     }
   }
 
@@ -237,7 +241,7 @@ export default function CalendarPage() {
       </div>
 
       {mutationError && (
-        <Alert variant="destructive" className="mt-4">
+        <Alert variant="destructive" role="alert" className="mt-4">
           <AlertDescription>{mutationError}</AlertDescription>
         </Alert>
       )}

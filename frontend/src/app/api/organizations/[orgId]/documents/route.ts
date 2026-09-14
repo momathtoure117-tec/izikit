@@ -22,6 +22,7 @@ export async function GET(
         id: true,
         url: true,
         createdAt: true,
+        uploadedById: true,
         project: { select: { id: true, name: true } },
         fileUpload: { select: { filename: true, mimeType: true, sizeBytes: true } },
       },

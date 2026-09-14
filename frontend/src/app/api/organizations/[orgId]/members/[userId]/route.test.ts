@@ -117,7 +117,7 @@ describe('DELETE /api/organizations/[orgId]/members/[userId]', () => {
     prismaMock.organizationMember.delete.mockResolvedValueOnce({} as never);
 
     const res = await DELETE(makeDelete(), ctxWith('org_1', 'u2'));
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(200);
   });
 
   it('refuses to remove the last OWNER with 409 LAST_OWNER', async () => {
@@ -149,6 +149,6 @@ describe('DELETE /api/organizations/[orgId]/members/[userId]', () => {
     prismaMock.organizationMember.delete.mockResolvedValueOnce({} as never);
 
     const res = await DELETE(makeDelete(), ctxWith('org_1', 'u2'));
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(200);
   });
 });

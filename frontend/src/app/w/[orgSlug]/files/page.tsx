@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { FileText, Trash2 } from 'lucide-react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useUser } from '@/contexts/AuthContext';
 import { WorkspaceNotFound } from '@/components/workspace-not-found';
 import { useApi } from '@/lib/useApi';
 import { api, ApiError } from '@/lib/api';
@@ -14,6 +15,7 @@ interface DocumentRow {
   id: string;
   url: string;
   createdAt: string;
+  uploadedById: string;
   project: { id: string; name: string };
   fileUpload: { filename: string; mimeType: string; sizeBytes: number };
 }
@@ -25,7 +27,8 @@ function formatBytes(n: number): string {
 }
 
 export default function FilesPage() {
-  const { organizationId, loading: wsLoading, notFound } = useWorkspace();
+  const { organizationId, role, loading: wsLoading, notFound } = useWorkspace();
+  const user = useUser();
   const [mutationError, setMutationError] = useState<string | null>(null);
   const path = organizationId ? `/api/organizations/${organizationId}/documents` : '';
   const { data, loading, error, refresh } = useApi<{ documents: DocumentRow[] }>(path, {
@@ -59,7 +62,11 @@ export default function FilesPage() {
       });
       await refresh();
     } catch (err) {
-      setMutationError(err instanceof ApiError ? err.message : 'Erreur réseau.');
+      if (err instanceof ApiError && err.code === 'FORBIDDEN_NOT_OWNER') {
+        setMutationError('Seul le déposant ou un administrateur peut supprimer ce document.');
+      } else {
+        setMutationError('Erreur réseau.');
+      }
     }
   }
 
@@ -91,14 +98,16 @@ export default function FilesPage() {
                     {new Date(doc.createdAt).toLocaleDateString('fr-FR')}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => onDelete(doc.id)}
-                  className="shrink-0 text-slate-400 hover:text-red-600"
-                  aria-label={`Supprimer ${doc.fileUpload.filename}`}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                {(doc.uploadedById === user?.id || role === 'ADMIN' || role === 'OWNER') && (
+                  <button
+                    type="button"
+                    onClick={() => onDelete(doc.id)}
+                    className="shrink-0 text-slate-400 hover:text-red-600"
+                    aria-label={`Supprimer ${doc.fileUpload.filename}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
               </CardContent>
             </Card>
           ))}
@@ -106,7 +115,7 @@ export default function FilesPage() {
       )}
 
       {mutationError && (
-        <Alert variant="destructive" className="mt-4">
+        <Alert variant="destructive" role="alert" className="mt-4">
           <AlertDescription>{mutationError}</AlertDescription>
         </Alert>
       )}

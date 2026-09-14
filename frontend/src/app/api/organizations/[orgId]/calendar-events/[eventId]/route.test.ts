@@ -46,7 +46,7 @@ describe('DELETE /api/organizations/[orgId]/calendar-events/[eventId]', () => {
     prismaMock.calendarEvent.delete.mockResolvedValueOnce({} as never);
 
     const res = await DELETE(makeDelete(), ctxWith('org_1', 'evt_1'));
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(200);
   });
 
   it('deletes the event when the caller is an ADMIN, even if not the creator', async () => {
@@ -59,7 +59,7 @@ describe('DELETE /api/organizations/[orgId]/calendar-events/[eventId]', () => {
     prismaMock.calendarEvent.delete.mockResolvedValueOnce({} as never);
 
     const res = await DELETE(makeDelete(), ctxWith('org_1', 'evt_1'));
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(200);
   });
 
   it('refuses a plain MEMBER who is not the creator with 403 FORBIDDEN_NOT_OWNER', async () => {

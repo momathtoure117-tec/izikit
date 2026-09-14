@@ -70,7 +70,10 @@ describe('POST /api/organizations/[orgId]/projects/[projectId]/documents', () =>
     prismaMock.project.findFirst.mockResolvedValueOnce(null);
 
     const res = await POST(
-      makePost({ fileUploadId: FILE_UPLOAD_ID, url: 'https://x' }),
+      makePost({
+        fileUploadId: FILE_UPLOAD_ID,
+        url: 'https://res.cloudinary.com/x/raw/upload/u1/abc',
+      }),
       ctxWith('org_1', 'proj_1'),
     );
     expect(res.status).toBe(404);
@@ -86,7 +89,10 @@ describe('POST /api/organizations/[orgId]/projects/[projectId]/documents', () =>
     } as never);
 
     const res = await POST(
-      makePost({ fileUploadId: FILE_UPLOAD_ID, url: 'https://x' }),
+      makePost({
+        fileUploadId: FILE_UPLOAD_ID,
+        url: 'https://res.cloudinary.com/x/raw/upload/u1/abc',
+      }),
       ctxWith('org_1', 'proj_1'),
     );
     expect(res.status).toBe(404);
@@ -103,22 +109,37 @@ describe('POST /api/organizations/[orgId]/projects/[projectId]/documents', () =>
     prismaMock.document.findUnique.mockResolvedValueOnce({ id: 'doc_existing' } as never);
 
     const res = await POST(
-      makePost({ fileUploadId: FILE_UPLOAD_ID, url: 'https://x' }),
+      makePost({
+        fileUploadId: FILE_UPLOAD_ID,
+        url: 'https://res.cloudinary.com/x/raw/upload/u1/abc',
+      }),
       ctxWith('org_1', 'proj_1'),
     );
     expect(res.status).toBe(409);
     const body = (await res.json()) as { error: string };
     expect(body.error).toBe('ALREADY_ATTACHED');
   });
+
+  it('returns 400 VALIDATION_FAILED for a non-Cloudinary url', async () => {
+    const res = await POST(
+      makePost({ fileUploadId: FILE_UPLOAD_ID, url: 'https://evil.example/payload.exe' }),
+      ctxWith('org_1', 'proj_1'),
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('VALIDATION_FAILED');
+  });
 });
 
 describe('GET /api/organizations/[orgId]/projects/[projectId]/documents', () => {
   it('lists documents for the project', async () => {
+    prismaMock.project.findFirst.mockResolvedValueOnce({ id: 'proj_1' } as never);
     prismaMock.document.findMany.mockResolvedValueOnce([
       {
         id: 'doc_1',
         url: 'https://x',
         createdAt: new Date('2026-10-01T00:00:00Z'),
+        uploadedById: 'u1',
         fileUpload: { filename: 'brief.pdf', mimeType: 'application/pdf', sizeBytes: 1024 },
       },
     ] as never);
@@ -130,5 +151,17 @@ describe('GET /api/organizations/[orgId]/projects/[projectId]/documents', () => 
     expect(res.status).toBe(200);
     const body = (await res.json()) as { documents: unknown[] };
     expect(body.documents).toHaveLength(1);
+  });
+
+  it('returns 404 PROJECT_NOT_FOUND for a foreign/nonexistent project', async () => {
+    prismaMock.project.findFirst.mockResolvedValueOnce(null);
+
+    const res = await GET(
+      new NextRequest('http://test/api/organizations/org_1/projects/proj_1/documents'),
+      ctxWith('org_1', 'proj_1'),
+    );
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('PROJECT_NOT_FOUND');
   });
 });

@@ -38,7 +38,7 @@ beforeEach(() => {
 });
 
 describe('DELETE /api/organizations/[orgId]/documents/[documentId]', () => {
-  it('deletes the document and its upload, calling destroyUpload first', async () => {
+  it('deletes the document and its upload, then best-effort destroys the Cloudinary asset', async () => {
     prismaMock.document.findUnique.mockResolvedValueOnce({
       id: 'doc_1',
       organizationId: 'org_1',
@@ -50,7 +50,7 @@ describe('DELETE /api/organizations/[orgId]/documents/[documentId]', () => {
     prismaMock.fileUpload.delete.mockResolvedValueOnce({} as never);
 
     const res = await DELETE(makeDelete(), ctxWith('org_1', 'doc_1'));
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(200);
     expect(mockDestroyUpload).toHaveBeenCalledWith('u1/abc');
     expect(prismaMock.document.delete).toHaveBeenCalled();
   });
@@ -68,7 +68,7 @@ describe('DELETE /api/organizations/[orgId]/documents/[documentId]', () => {
     prismaMock.fileUpload.delete.mockResolvedValueOnce({} as never);
 
     const res = await DELETE(makeDelete(), ctxWith('org_1', 'doc_1'));
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(200);
     expect(prismaMock.document.delete).toHaveBeenCalled();
   });
 

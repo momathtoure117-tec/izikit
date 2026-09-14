@@ -11,7 +11,9 @@ import { makeRequestContext, withRequestContext } from '@/lib/server/observabili
 
 const CreateBody = z.object({
   fileUploadId: zCuid,
-  url: z.string().url(),
+  url: z.string().refine((v) => v.startsWith('https://res.cloudinary.com/'), {
+    message: 'url must be a Cloudinary secure_url',
+  }),
 });
 
 export async function POST(
@@ -101,12 +103,24 @@ export async function GET(
     const auth = await requireOrgRole(orgId, 'MEMBER');
     if (auth instanceof NextResponse) return auth;
 
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, organizationId: orgId },
+      select: { id: true },
+    });
+    if (!project) {
+      return NextResponse.json(
+        { error: 'PROJECT_NOT_FOUND', message: 'Project not found' },
+        { status: 404, headers: { 'x-request-id': reqCtx.requestId } },
+      );
+    }
+
     const documents = await prisma.document.findMany({
       where: { organizationId: orgId, projectId },
       select: {
         id: true,
         url: true,
         createdAt: true,
+        uploadedById: true,
         fileUpload: { select: { filename: true, mimeType: true, sizeBytes: true } },
       },
       orderBy: { createdAt: 'desc' },

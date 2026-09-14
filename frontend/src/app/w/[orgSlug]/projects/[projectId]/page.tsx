@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { ArrowLeft, Plus, AlertCircle, Paperclip, Trash2 as TrashIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useUser } from '@/contexts/AuthContext';
 import { useApi } from '@/lib/useApi';
 import { api, ApiError } from '@/lib/api';
 import { COOKIE_PREFIX } from '@/lib/constants';
@@ -42,6 +43,7 @@ interface DocumentRow {
   id: string;
   url: string;
   createdAt: string;
+  uploadedById: string;
   fileUpload: { filename: string; mimeType: string; sizeBytes: number };
 }
 
@@ -79,7 +81,8 @@ function readCsrfCookie(): string | null {
 }
 
 export default function ProjectDetailPage() {
-  const { organizationId, slug, loading: wsLoading, notFound: wsNotFound } = useWorkspace();
+  const { organizationId, slug, role, loading: wsLoading, notFound: wsNotFound } = useWorkspace();
+  const user = useUser();
   const params = useParams<{ projectId: string }>();
   const path = organizationId
     ? `/api/organizations/${organizationId}/projects/${params.projectId}`
@@ -97,10 +100,11 @@ export default function ProjectDetailPage() {
   const members = membersData?.members ?? [];
 
   const documentsPath = organizationId ? `${path}/documents` : '';
-  const { data: documentsData, refresh: refreshDocuments } = useApi<{ documents: DocumentRow[] }>(
-    documentsPath,
-    { skip: !organizationId },
-  );
+  const {
+    data: documentsData,
+    error: documentsError,
+    refresh: refreshDocuments,
+  } = useApi<{ documents: DocumentRow[] }>(documentsPath, { skip: !organizationId });
 
   const [title, setTitle] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
@@ -196,7 +200,11 @@ export default function ProjectDetailPage() {
       });
       await refreshDocuments();
     } catch (err) {
-      setUploadError(err instanceof ApiError ? err.message : 'Erreur réseau.');
+      if (err instanceof ApiError && err.code === 'FORBIDDEN_NOT_OWNER') {
+        setUploadError('Seul le déposant ou un administrateur peut supprimer ce document.');
+      } else {
+        setUploadError('Erreur réseau.');
+      }
     }
   }
 
@@ -346,7 +354,11 @@ export default function ProjectDetailPage() {
             <AlertDescription>{uploadError}</AlertDescription>
           </Alert>
         )}
-        {(documentsData?.documents.length ?? 0) === 0 ? (
+        {documentsError ? (
+          <Alert variant="destructive" role="alert" className="mb-3">
+            <AlertDescription>Impossible de charger les documents.</AlertDescription>
+          </Alert>
+        ) : (documentsData?.documents.length ?? 0) === 0 ? (
           <p className="text-sm text-slate-500">Aucun document pour l&apos;instant.</p>
         ) : (
           <div className="flex flex-col gap-2">
@@ -363,14 +375,16 @@ export default function ProjectDetailPage() {
                 >
                   {doc.fileUpload.filename}
                 </a>
-                <button
-                  type="button"
-                  onClick={() => onDeleteDocument(doc.id)}
-                  className="shrink-0 text-slate-400 hover:text-red-600"
-                  aria-label={`Supprimer ${doc.fileUpload.filename}`}
-                >
-                  <TrashIcon className="h-4 w-4" />
-                </button>
+                {(doc.uploadedById === user?.id || role === 'ADMIN' || role === 'OWNER') && (
+                  <button
+                    type="button"
+                    onClick={() => onDeleteDocument(doc.id)}
+                    className="shrink-0 text-slate-400 hover:text-red-600"
+                    aria-label={`Supprimer ${doc.fileUpload.filename}`}
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             ))}
           </div>

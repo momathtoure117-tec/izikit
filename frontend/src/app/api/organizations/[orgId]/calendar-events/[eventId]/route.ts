@@ -46,6 +46,9 @@ export async function DELETE(
 
     await prisma.calendarEvent.delete({ where: { id: eventId } });
 
-    return new NextResponse(null, { status: 204, headers: { 'x-request-id': reqCtx.requestId } });
+    return NextResponse.json(
+      { success: true },
+      { status: 200, headers: { 'x-request-id': reqCtx.requestId } },
+    );
   });
 }
