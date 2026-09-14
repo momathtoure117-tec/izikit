@@ -16,7 +16,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 // browser carries cookies + receives Set-Cookie from the OAuth route's
 // callback redirect. Using a plain <a> avoids any fetch/CORS plumbing.
 // Same-origin Next.js API route — relative URL is enough.
-const googleSignInHref = '/api/auth/oauth/google/start?next=/directory';
+const googleSignInHref = '/api/auth/oauth/google/start?next=/onboarding';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -37,7 +37,7 @@ export default function LoginPage() {
       });
       if (res.csrfToken) storeCsrfToken(res.csrfToken);
       await refresh();
-      router.push('/directory');
+      router.push('/onboarding');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Erreur inconnue');
     } finally {

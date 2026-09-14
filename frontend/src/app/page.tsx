@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Handshake, Lightbulb, Users } from 'lucide-react';
+import { FolderKanban, ListChecks, Users } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { buttonVariants } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -18,17 +18,9 @@ export default function Home() {
           </span>
           <nav className="flex items-center gap-3">
             {!loading && user ? (
-              <>
-                <Link
-                  href="/directory"
-                  className={buttonVariants({ variant: 'ghost', size: 'sm' })}
-                >
-                  Annuaire
-                </Link>
-                <Link href="/profile" className={buttonVariants({ size: 'sm' })}>
-                  Mon profil
-                </Link>
-              </>
+              <Link href="/onboarding" className={buttonVariants({ size: 'sm' })}>
+                Ouvrir mon espace de travail
+              </Link>
             ) : (
               <>
                 <Link href="/login" className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
@@ -45,19 +37,20 @@ export default function Home() {
 
       <section className="mx-auto flex max-w-3xl flex-1 flex-col items-center px-4 py-20 text-center sm:px-6">
         <h1 className="text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl">
-          Trouvez votre co-fondateur en Afrique
+          Gérez vos projets d&rsquo;équipe, simplement
         </h1>
         <p className="mt-4 max-w-xl text-lg text-slate-600">
-          CoFound Africa met en relation des porteurs de projets et des profils prêts à co-fonder.
-          Créez votre profil, parcourez l&rsquo;annuaire et entrez en contact.
+          CoFound Africa est l&rsquo;espace de travail de votre équipe : projets, tâches et
+          échéances au même endroit.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Link href="/directory" className={buttonVariants({ size: 'lg' })}>
-            Parcourir l&rsquo;annuaire
-          </Link>
-          {!loading && !user && (
-            <Link href="/signup" className={buttonVariants({ variant: 'outline', size: 'lg' })}>
-              Créer mon profil
+          {!loading && user ? (
+            <Link href="/onboarding" className={buttonVariants({ size: 'lg' })}>
+              Ouvrir mon espace de travail
+            </Link>
+          ) : (
+            <Link href="/signup" className={buttonVariants({ size: 'lg' })}>
+              Commencer gratuitement
             </Link>
           )}
         </div>
@@ -65,28 +58,28 @@ export default function Home() {
         <div className="mt-16 grid w-full gap-4 sm:grid-cols-3">
           <Card>
             <CardContent className="flex flex-col items-center gap-2 p-6 text-center">
+              <FolderKanban className="h-6 w-6 text-indigo-600" />
+              <p className="text-sm font-medium text-slate-900">Projets</p>
+              <p className="text-sm text-slate-600">
+                Organisez le travail de votre équipe par projet.
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex flex-col items-center gap-2 p-6 text-center">
+              <ListChecks className="h-6 w-6 text-indigo-600" />
+              <p className="text-sm font-medium text-slate-900">Tâches</p>
+              <p className="text-sm text-slate-600">
+                Assignez, suivez et terminez vos tâches sans effort.
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex flex-col items-center gap-2 p-6 text-center">
               <Users className="h-6 w-6 text-indigo-600" />
-              <p className="text-sm font-medium text-slate-900">Annuaire filtrable</p>
+              <p className="text-sm font-medium text-slate-900">Équipe</p>
               <p className="text-sm text-slate-600">
-                Filtrez par secteur, ville ou compétence pour trouver le bon profil.
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="flex flex-col items-center gap-2 p-6 text-center">
-              <Lightbulb className="h-6 w-6 text-indigo-600" />
-              <p className="text-sm font-medium text-slate-900">Partagez votre idée</p>
-              <p className="text-sm text-slate-600">
-                Décrivez votre projet ou signalez votre disponibilité à co-fonder.
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="flex flex-col items-center gap-2 p-6 text-center">
-              <Handshake className="h-6 w-6 text-indigo-600" />
-              <p className="text-sm font-medium text-slate-900">Mise en relation</p>
-              <p className="text-sm text-slate-600">
-                Débloquez les coordonnées d&rsquo;un profil pour échanger directement.
+                Invitez vos collègues et travaillez ensemble.
               </p>
             </CardContent>
           </Card>

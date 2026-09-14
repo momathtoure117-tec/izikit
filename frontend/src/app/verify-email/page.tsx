@@ -41,7 +41,7 @@ function VerifyEmailForm() {
       });
       if (res.csrfToken) storeCsrfToken(res.csrfToken);
       await refresh();
-      router.push('/directory');
+      router.push('/onboarding');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Erreur inconnue');
     } finally {

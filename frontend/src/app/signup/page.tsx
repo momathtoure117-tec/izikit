@@ -13,7 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 // Top-level navigation (not fetch) — see login page for the same pattern.
 // Same-origin Next.js API route — relative URL is enough.
-const googleSignInHref = '/api/auth/oauth/google/start?next=/directory';
+const googleSignInHref = '/api/auth/oauth/google/start?next=/onboarding';
 
 export default function SignupPage() {
   const router = useRouter();
