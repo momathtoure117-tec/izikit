@@ -54,6 +54,7 @@ export default function CalendarPage() {
   const [startAt, setStartAt] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [mutationError, setMutationError] = useState<string | null>(null);
 
   const month = monthKey(cursor);
   const path = organizationId
@@ -108,13 +109,14 @@ export default function CalendarPage() {
   }
 
   async function onDelete(eventId: string) {
+    setMutationError(null);
     try {
       await api(`/api/organizations/${organizationId}/calendar-events/${eventId}`, {
         method: 'DELETE',
       });
       await refresh();
-    } catch {
-      // errors surfaced via the page-level Alert on next fetch if persistent
+    } catch (err) {
+      setMutationError(err instanceof ApiError ? err.message : 'Erreur réseau.');
     }
   }
 
@@ -233,6 +235,12 @@ export default function CalendarPage() {
           );
         }) && <p className="text-sm text-slate-500">Aucun événement ce mois-ci.</p>}
       </div>
+
+      {mutationError && (
+        <Alert variant="destructive" className="mt-4">
+          <AlertDescription>{mutationError}</AlertDescription>
+        </Alert>
+      )}
     </div>
   );
 }
