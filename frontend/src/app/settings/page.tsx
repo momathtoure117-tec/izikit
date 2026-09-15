@@ -18,7 +18,8 @@
 
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { AlertCircle, CheckCircle2, LogOut } from 'lucide-react';
 import { api, ApiError } from '@/lib/api';
 import { useAuth, useUser } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -31,8 +32,9 @@ import { Badge } from '@/components/ui/badge';
 
 export default function SettingsPage() {
   const user = useUser();
-  const { refresh } = useAuth();
+  const { refresh, logout } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
 
   // Password form state — fields used by either branch.
   const [currentPassword, setCurrentPassword] = useState('');
@@ -40,6 +42,17 @@ export default function SettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  async function onLogout() {
+    setLoggingOut(true);
+    try {
+      await logout();
+      router.push('/login');
+    } finally {
+      setLoggingOut(false);
+    }
+  }
 
   if (!user) {
     return (
@@ -206,6 +219,16 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Button
+        variant="outline"
+        onClick={onLogout}
+        disabled={loggingOut}
+        className="gap-2 text-red-600 hover:text-red-700"
+      >
+        <LogOut className="h-4 w-4" />
+        {loggingOut ? 'Déconnexion…' : 'Se déconnecter'}
+      </Button>
 
       <Link href="/onboarding" className="text-center text-sm text-slate-600 hover:underline">
         Retour à mon espace de travail

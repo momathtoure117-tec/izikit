@@ -8,12 +8,20 @@ import {
   FolderKanban,
   ListChecks,
   Users,
+  Calendar,
+  FileText,
   ChevronDown,
   Plus,
   AlertCircle,
+  Bell,
+  MessageSquare,
+  StickyNote,
+  AtSign,
+  Activity,
 } from 'lucide-react';
 import { WorkspaceProvider, useWorkspace } from '@/contexts/WorkspaceContext';
 import { cn } from '@/lib/utils';
+import { useApi } from '@/lib/useApi';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 
@@ -24,17 +32,52 @@ import { Button } from '@/components/ui/button';
 // pointing at the same page, this collapses them into one ("Mes tâches").
 // A future sub-project can reintroduce a separate all-tasks view backed by
 // its own route once that's actually needed.
-const NAV_ITEMS = [
+const WORKSPACE_NAV_ITEMS = [
   { label: 'Tableau de bord', href: 'dashboard', icon: LayoutDashboard },
   { label: 'Projets', href: 'projects', icon: FolderKanban },
+  { label: 'Calendrier', href: 'calendar', icon: Calendar },
   { label: 'Mes tâches', href: 'tasks', icon: ListChecks },
   { label: 'Équipe', href: 'team', icon: Users },
+  { label: 'Fichiers', href: 'files', icon: FileText },
 ];
+
+const COLLABORATION_NAV_ITEMS = [
+  { label: 'Messagerie', href: 'messages', icon: MessageSquare },
+  { label: 'Notes', href: 'notes', icon: StickyNote },
+  { label: 'Mentions', href: 'mentions', icon: AtSign },
+  { label: 'Activité récente', href: 'activity', icon: Activity },
+];
+
+interface NavItem {
+  label: string;
+  href: string;
+  icon: typeof LayoutDashboard;
+}
+
+function renderNavItem(item: NavItem, slug: string, pathname: string) {
+  const hrefPath = item.href.split('?')[0];
+  const isActive = pathname === `/w/${slug}/${hrefPath}`;
+  const Icon = item.icon;
+  return (
+    <Link
+      key={item.label}
+      href={`/w/${slug}/${item.href}`}
+      className={cn(
+        'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium',
+        isActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 hover:bg-slate-50',
+      )}
+    >
+      <Icon className="h-4 w-4" />
+      {item.label}
+    </Link>
+  );
+}
 
 function Sidebar() {
   const { slug, name, organizations, loading, notFound, error } = useWorkspace();
   const pathname = usePathname();
   const [switcherOpen, setSwitcherOpen] = useState(false);
+  const { data: notifCount } = useApi<{ count: number }>('/api/notifications/count');
 
   if (error) {
     return (
@@ -57,15 +100,27 @@ function Sidebar() {
 
   return (
     <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white">
-      <div className="relative border-b border-slate-200 p-4">
+      <div className="relative flex items-center justify-between border-b border-slate-200 p-4">
         <button
           type="button"
           onClick={() => setSwitcherOpen((o) => !o)}
-          className="flex w-full cursor-pointer items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm font-semibold text-slate-900 hover:bg-slate-50"
+          className="flex min-w-0 flex-1 cursor-pointer items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm font-semibold text-slate-900 hover:bg-slate-50"
         >
           <span className="truncate">{loading ? 'Chargement…' : name || 'Espace de travail'}</span>
           <ChevronDown className="h-4 w-4 shrink-0 text-slate-500" />
         </button>
+        <Link
+          href={`/w/${slug}/notifications`}
+          className="relative ml-2 shrink-0 rounded-lg p-1.5 text-slate-500 hover:bg-slate-50"
+          aria-label="Notifications"
+        >
+          <Bell className="h-4 w-4" />
+          {(notifCount?.count ?? 0) > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[9px] font-semibold text-white">
+              {notifCount!.count > 9 ? '9+' : notifCount!.count}
+            </span>
+          )}
+        </Link>
         {switcherOpen && (
           <div className="absolute left-4 right-4 z-10 mt-1 rounded-lg border border-slate-200 bg-white py-1 shadow-md">
             {organizations.map((org) => (
@@ -97,24 +152,11 @@ function Sidebar() {
         <p className="px-2 pt-1 pb-2 text-xs font-semibold tracking-wider text-slate-400 uppercase">
           Espace de travail
         </p>
-        {NAV_ITEMS.map((item) => {
-          const hrefPath = item.href.split('?')[0];
-          const isActive = pathname === `/w/${slug}/${hrefPath}`;
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.label}
-              href={`/w/${slug}/${item.href}`}
-              className={cn(
-                'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium',
-                isActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 hover:bg-slate-50',
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {item.label}
-            </Link>
-          );
-        })}
+        {WORKSPACE_NAV_ITEMS.map((item) => renderNavItem(item, slug, pathname))}
+        <p className="px-2 pt-4 pb-2 text-xs font-semibold tracking-wider text-slate-400 uppercase">
+          Collaboration
+        </p>
+        {COLLABORATION_NAV_ITEMS.map((item) => renderNavItem(item, slug, pathname))}
       </nav>
 
       {notFound && (

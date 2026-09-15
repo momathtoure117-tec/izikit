@@ -119,6 +119,17 @@ export async function uploadBuffer(
 }
 
 /**
+ * Best-effort delete of a Cloudinary asset by its public_id. Callers should
+ * catch and log on failure rather than aborting a DB deletion — an orphaned
+ * Cloudinary asset is a cheap, recoverable cost; a DB row that can never be
+ * deleted because Cloudinary is briefly unreachable is not acceptable.
+ */
+export async function destroyUpload(publicId: string): Promise<void> {
+  configureOnce();
+  await cloudinary.uploader.destroy(publicId, { resource_type: 'auto' });
+}
+
+/**
  * Test-only escape hatch — clears the cached configuration flag so a test can
  * mutate `process.env.CLOUDINARY_*` and re-trigger lazy init. Never call this
  * from application code.

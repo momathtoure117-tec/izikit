@@ -65,11 +65,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const url = req.nextUrl;
     const limit = clampLimit(url.searchParams.get('limit'));
     const unread = url.searchParams.get('unread') === 'true';
+    const type = url.searchParams.get('type');
     const cursor = decodeCursor(url.searchParams.get('cursor'));
 
     const where: Prisma.NotificationWhereInput = {
       userId: auth.user.sub,
       ...(unread ? { readAt: null } : {}),
+      ...(type ? { type } : {}),
       ...(cursor
         ? {
             OR: [

@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, Plus, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Plus, AlertCircle, Paperclip, Trash2 as TrashIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useUser } from '@/contexts/AuthContext';
 import { useApi } from '@/lib/useApi';
 import { api, ApiError } from '@/lib/api';
+import { COOKIE_PREFIX } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { WorkspaceNotFound } from '@/components/workspace-not-found';
+import { MentionInput, renderMessageBody } from '@/components/mention-input';
 
 interface Task {
   id: string;
@@ -35,6 +38,21 @@ interface ProjectDetail {
   description: string | null;
   status: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
   tasks: Task[];
+}
+
+interface DocumentRow {
+  id: string;
+  url: string;
+  createdAt: string;
+  uploadedById: string;
+  fileUpload: { filename: string; mimeType: string; sizeBytes: number };
+}
+
+interface ProjectMessageRow {
+  id: string;
+  body: string;
+  authorId: string;
+  createdAt: string;
 }
 
 const STATUS_LABEL: Record<Task['status'], string> = {
@@ -60,8 +78,19 @@ function memberLabel(members: Member[], userId: string): string {
   return match ? (match.name ?? match.email) : 'Membre inconnu';
 }
 
+// `api()` always JSON-encodes its body, so it cannot send multipart/form-data
+// for the upload step — that step uses a raw `fetch()` instead and needs the
+// CSRF token read out of the cookie manually.
+function readCsrfCookie(): string | null {
+  const name = `${COOKIE_PREFIX}-csrf`;
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${escaped}=([^;]*)`));
+  return match && match[1] ? decodeURIComponent(match[1]) : null;
+}
+
 export default function ProjectDetailPage() {
-  const { organizationId, slug, loading: wsLoading, notFound: wsNotFound } = useWorkspace();
+  const { organizationId, slug, role, loading: wsLoading, notFound: wsNotFound } = useWorkspace();
+  const user = useUser();
   const params = useParams<{ projectId: string }>();
   const path = organizationId
     ? `/api/organizations/${organizationId}/projects/${params.projectId}`
@@ -78,11 +107,40 @@ export default function ProjectDetailPage() {
   );
   const members = membersData?.members ?? [];
 
+  const documentsPath = organizationId ? `${path}/documents` : '';
+  const {
+    data: documentsData,
+    error: documentsError,
+    refresh: refreshDocuments,
+  } = useApi<{ documents: DocumentRow[] }>(documentsPath, { skip: !organizationId });
+
   const [title, setTitle] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  // Shared between the upload and delete flows in the Documents section below —
+  // only one of those actions can be in flight at a time, and surfacing both
+  // kinds of failure through a single Alert keeps the section simple.
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const messagesPath = organizationId
+    ? `/api/organizations/${organizationId}/messages?projectId=${params.projectId}`
+    : '';
+  const {
+    data: messagesData,
+    error: messagesError,
+    refresh: refreshMessages,
+  } = useApi<{
+    messages: ProjectMessageRow[];
+  }>(messagesPath, { skip: !organizationId });
+
+  const [messageDraft, setMessageDraft] = useState('');
+  const [messageSendError, setMessageSendError] = useState<string | null>(null);
+  const [sendingMessage, setSendingMessage] = useState(false);
 
   async function onCreateTask(e: FormEvent) {
     e.preventDefault();
@@ -121,6 +179,73 @@ export default function ProjectDetailPage() {
       await refresh();
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : 'Erreur inconnue');
+    }
+  }
+
+  async function onUploadFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !organizationId) return;
+    setUploadError(null);
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const csrfToken = readCsrfCookie();
+      const uploadRes = await fetch('/api/upload', {
+        method: 'POST',
+        body: form,
+        credentials: 'include',
+        headers: csrfToken ? { 'x-csrf-token': csrfToken } : {},
+      });
+      if (!uploadRes.ok) {
+        throw new Error('upload failed');
+      }
+      const uploaded = (await uploadRes.json()) as { id: string; url: string };
+      await api(`${path}/documents`, {
+        method: 'POST',
+        body: { fileUploadId: uploaded.id, url: uploaded.url },
+      });
+      await refreshDocuments();
+    } catch (err) {
+      setUploadError(err instanceof ApiError ? err.message : "Échec de l'envoi du fichier.");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
+
+  async function onDeleteDocument(documentId: string) {
+    if (!organizationId) return;
+    setUploadError(null);
+    try {
+      await api(`/api/organizations/${organizationId}/documents/${documentId}`, {
+        method: 'DELETE',
+      });
+      await refreshDocuments();
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'FORBIDDEN_NOT_OWNER') {
+        setUploadError('Seul le déposant ou un administrateur peut supprimer ce document.');
+      } else {
+        setUploadError('Erreur réseau.');
+      }
+    }
+  }
+
+  async function onSendMessage() {
+    setMessageSendError(null);
+    if (!messageDraft.trim()) return;
+    setSendingMessage(true);
+    try {
+      await api(`/api/organizations/${organizationId}/messages`, {
+        method: 'POST',
+        body: { body: messageDraft.trim(), projectId: params.projectId },
+      });
+      setMessageDraft('');
+      await refreshMessages();
+    } catch (err) {
+      setMessageSendError(err instanceof ApiError ? err.message : 'Erreur réseau.');
+    } finally {
+      setSendingMessage(false);
     }
   }
 
@@ -247,6 +372,108 @@ export default function ProjectDetailPage() {
           </Card>
         ))}
       </div>
+
+      <section className="mt-8">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-900">Documents</h2>
+          <label className="cursor-pointer">
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              onChange={onUploadFile}
+              disabled={uploading}
+            />
+            <span className="inline-flex items-center gap-2 rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+              <Paperclip className="h-4 w-4" />
+              {uploading ? 'Envoi…' : 'Ajouter un fichier'}
+            </span>
+          </label>
+        </div>
+        {uploadError && (
+          <Alert variant="destructive" role="alert" className="mb-3">
+            <AlertDescription>{uploadError}</AlertDescription>
+          </Alert>
+        )}
+        {documentsError ? (
+          <Alert variant="destructive" role="alert" className="mb-3">
+            <AlertDescription>Impossible de charger les documents.</AlertDescription>
+          </Alert>
+        ) : (documentsData?.documents.length ?? 0) === 0 ? (
+          <p className="text-sm text-slate-500">Aucun document pour l&apos;instant.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {documentsData?.documents.map((doc) => (
+              <div
+                key={doc.id}
+                className="flex items-center justify-between gap-3 rounded-md border border-slate-200 px-3 py-2"
+              >
+                <a
+                  href={doc.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="truncate text-sm font-medium text-indigo-600 hover:underline"
+                >
+                  {doc.fileUpload.filename}
+                </a>
+                {(doc.uploadedById === user?.id || role === 'ADMIN' || role === 'OWNER') && (
+                  <button
+                    type="button"
+                    onClick={() => onDeleteDocument(doc.id)}
+                    className="shrink-0 text-slate-400 hover:text-red-600"
+                    aria-label={`Supprimer ${doc.fileUpload.filename}`}
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="mt-8">
+        <h2 className="mb-3 text-lg font-semibold text-slate-900">Discussions</h2>
+        <div className="mb-3 flex flex-col gap-2">
+          {messagesError ? (
+            <Alert variant="destructive" role="alert">
+              <AlertDescription>Impossible de charger les messages.</AlertDescription>
+            </Alert>
+          ) : (messagesData?.messages.length ?? 0) === 0 ? (
+            <p className="text-sm text-slate-500">Aucun message pour l&apos;instant.</p>
+          ) : (
+            messagesData?.messages.map((m) => (
+              <div key={m.id} className="rounded-lg border border-slate-200 px-3 py-2">
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-900">
+                    {memberLabel(members, m.authorId)}
+                  </span>
+                  <span className="text-xs text-slate-400">
+                    {new Date(m.createdAt).toLocaleString('fr-FR')}
+                  </span>
+                </div>
+                <p className="whitespace-pre-wrap text-sm text-slate-700">
+                  {renderMessageBody(m.body)}
+                </p>
+              </div>
+            ))
+          )}
+        </div>
+        <MentionInput
+          value={messageDraft}
+          onChange={setMessageDraft}
+          members={members}
+          placeholder="Discuter de ce projet… (@ pour mentionner)"
+        />
+        {messageSendError && (
+          <Alert variant="destructive" role="alert" className="mt-2">
+            <AlertDescription>{messageSendError}</AlertDescription>
+          </Alert>
+        )}
+        <Button type="button" onClick={onSendMessage} disabled={sendingMessage} className="mt-2">
+          {sendingMessage ? 'Envoi…' : 'Envoyer'}
+        </Button>
+      </section>
     </div>
   );
 }
