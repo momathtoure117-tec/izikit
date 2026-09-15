@@ -58,6 +58,7 @@ describe('POST /api/organizations/[orgId]/messages', () => {
       authorId: 'u1',
       projectId: null,
       createdAt: new Date('2026-10-01T10:00:00Z'),
+      author: { name: 'Awa Diop', email: 'u1@test.local' },
     } as never);
 
     const res = await POST(makePost({ body: 'Bonjour équipe' }), ctxWith('org_1'));
@@ -75,6 +76,7 @@ describe('POST /api/organizations/[orgId]/messages', () => {
       authorId: 'u1',
       projectId: PROJ_1,
       createdAt: new Date('2026-10-01T10:05:00Z'),
+      author: { name: 'Awa Diop', email: 'u1@test.local' },
     } as never);
 
     const res = await POST(makePost({ body: 'Point projet', projectId: PROJ_1 }), ctxWith('org_1'));
@@ -149,6 +151,7 @@ describe('POST /api/organizations/[orgId]/messages — mentions', () => {
       authorId: 'u1',
       projectId: null,
       createdAt: new Date('2026-10-01T10:00:00Z'),
+      author: { name: 'Moussa Ndiaye', email: 'u1@test.local' },
     } as never);
 
     await POST(
@@ -167,6 +170,28 @@ describe('POST /api/organizations/[orgId]/messages — mentions', () => {
     expect(input.dedupeKey).toBe('mention:msg_1:cku2y3z4a5b6c7d8e9f0g1h2');
   });
 
+  it('builds the mention notification body from the AUTHOR real name, not the mention label', async () => {
+    // The mention token's label ("Awa Diop") is the MENTIONED person's own name as
+    // typed by the message author — it must never be used as the notification's
+    // "so-and-so mentioned you" actor. The author's real display name (mocked here
+    // as a distinct value, "Moussa Ndiaye") is what must appear instead.
+    prismaMock.message.create.mockResolvedValueOnce({
+      id: 'msg_author_check',
+      body: 'Salut @[Awa Diop](cku2y3z4a5b6c7d8e9f0g1h2)',
+      authorId: 'u1',
+      projectId: null,
+      createdAt: new Date('2026-10-01T10:00:00Z'),
+      author: { name: 'Moussa Ndiaye', email: 'u1@test.local' },
+    } as never);
+
+    await POST(makePost({ body: 'Salut @[Awa Diop](cku2y3z4a5b6c7d8e9f0g1h2)' }), ctxWith('org_1'));
+
+    expect(mockCreateNotification).toHaveBeenCalledTimes(1);
+    const [, input] = mockCreateNotification.mock.calls[0]!;
+    expect(input.body).toContain('Moussa Ndiaye');
+    expect(input.body).not.toContain('Awa Diop');
+  });
+
   it('silently drops a mention for a user who is no longer a member', async () => {
     mockIsOrgMember.mockResolvedValueOnce(false);
     prismaMock.message.create.mockResolvedValueOnce({
@@ -175,6 +200,7 @@ describe('POST /api/organizations/[orgId]/messages — mentions', () => {
       authorId: 'u1',
       projectId: null,
       createdAt: new Date('2026-10-01T10:00:00Z'),
+      author: { name: 'Moussa Ndiaye', email: 'u1@test.local' },
     } as never);
 
     const res = await POST(
@@ -194,6 +220,7 @@ describe('POST /api/organizations/[orgId]/messages — mentions', () => {
       authorId: 'u1',
       projectId: null,
       createdAt: new Date('2026-10-01T10:00:00Z'),
+      author: { name: 'Moussa Ndiaye', email: 'u1@test.local' },
     } as never);
 
     const res = await POST(
@@ -211,6 +238,7 @@ describe('POST /api/organizations/[orgId]/messages — mentions', () => {
       authorId: 'u1',
       projectId: null,
       createdAt: new Date('2026-10-01T10:00:00Z'),
+      author: { name: 'Moussa Ndiaye', email: 'u1@test.local' },
     } as never);
 
     await POST(makePost({ body: 'Pas de mention ici' }), ctxWith('org_1'));

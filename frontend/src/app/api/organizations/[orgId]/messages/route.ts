@@ -20,9 +20,20 @@ const CreateBody = z.object({
 
 const MENTION_TOKEN = /@\[([^\]]+)\]\(([a-zA-Z0-9]+)\)/g;
 
+const MAX_MENTIONS = 20;
+
 function extractMentionedUserIds(body: string): { name: string; userId: string }[] {
   const matches = [...body.matchAll(MENTION_TOKEN)];
-  return matches.map((m) => ({ name: m[1]!, userId: m[2]! }));
+  const all = matches.map((m) => ({ name: m[1]!, userId: m[2]! }));
+  const seen = new Set<string>();
+  const deduped: { name: string; userId: string }[] = [];
+  for (const mention of all) {
+    if (seen.has(mention.userId)) continue;
+    seen.add(mention.userId);
+    deduped.push(mention);
+    if (deduped.length >= MAX_MENTIONS) break;
+  }
+  return deduped;
 }
 
 export async function POST(
@@ -66,9 +77,17 @@ export async function POST(
         authorId: auth.user.sub,
         body: parsed.data.body,
       },
-      select: { id: true, body: true, authorId: true, projectId: true, createdAt: true },
+      select: {
+        id: true,
+        body: true,
+        authorId: true,
+        projectId: true,
+        createdAt: true,
+        author: { select: { name: true, email: true } },
+      },
     });
 
+    const authorDisplayName = message.author.name ?? message.author.email;
     const mentions = extractMentionedUserIds(parsed.data.body);
     for (const mention of mentions) {
       try {
@@ -76,7 +95,13 @@ export async function POST(
         if (!stillMember) continue;
         await createNotification(
           prisma,
-          mentionNotification(mention.userId, message.id, mention.name, orgId, message.projectId),
+          mentionNotification(
+            mention.userId,
+            message.id,
+            authorDisplayName,
+            orgId,
+            message.projectId,
+          ),
         );
       } catch (err) {
         log.warn('mention notification failed, message still created', {
@@ -87,8 +112,18 @@ export async function POST(
       }
     }
 
+    // The client never needs the author relation — omit it from the response
+    // rather than exposing it, keeping the public response shape unchanged.
+    const messageResponse = {
+      id: message.id,
+      body: message.body,
+      authorId: message.authorId,
+      projectId: message.projectId,
+      createdAt: message.createdAt,
+    };
+
     return NextResponse.json(
-      { message },
+      { message: messageResponse },
       { status: 201, headers: { 'x-request-id': reqCtx.requestId } },
     );
   });

@@ -39,7 +39,7 @@ export async function GET(
             createdBy: { select: { name: true, email: true } },
           },
           orderBy: { createdAt: 'desc' },
-          take: 10,
+          take: 30,
         }),
         prisma.task.findMany({
           where: { organizationId: orgId },
@@ -50,7 +50,7 @@ export async function GET(
             createdBy: { select: { name: true, email: true } },
           },
           orderBy: { createdAt: 'desc' },
-          take: 10,
+          take: 30,
         }),
         prisma.calendarEvent.findMany({
           where: { organizationId: orgId },
@@ -61,7 +61,7 @@ export async function GET(
             createdBy: { select: { name: true, email: true } },
           },
           orderBy: { createdAt: 'desc' },
-          take: 10,
+          take: 30,
         }),
         prisma.document.findMany({
           where: { organizationId: orgId },
@@ -72,13 +72,13 @@ export async function GET(
             fileUpload: { select: { filename: true } },
           },
           orderBy: { createdAt: 'desc' },
-          take: 10,
+          take: 30,
         }),
         prisma.message.findMany({
           where: { organizationId: orgId },
           select: { id: true, createdAt: true, author: { select: { name: true, email: true } } },
           orderBy: { createdAt: 'desc' },
-          take: 10,
+          take: 30,
         }),
         prisma.note.findMany({
           where: { organizationId: orgId },
@@ -89,13 +89,13 @@ export async function GET(
             author: { select: { name: true, email: true } },
           },
           orderBy: { createdAt: 'desc' },
-          take: 10,
+          take: 30,
         }),
         prisma.organizationMember.findMany({
           where: { organizationId: orgId },
           select: { id: true, createdAt: true, user: { select: { name: true, email: true } } },
           orderBy: { createdAt: 'desc' },
-          take: 10,
+          take: 30,
         }),
       ]);
 

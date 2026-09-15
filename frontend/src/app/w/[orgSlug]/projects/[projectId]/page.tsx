@@ -130,7 +130,11 @@ export default function ProjectDetailPage() {
   const messagesPath = organizationId
     ? `/api/organizations/${organizationId}/messages?projectId=${params.projectId}`
     : '';
-  const { data: messagesData, refresh: refreshMessages } = useApi<{
+  const {
+    data: messagesData,
+    error: messagesError,
+    refresh: refreshMessages,
+  } = useApi<{
     messages: ProjectMessageRow[];
   }>(messagesPath, { skip: !organizationId });
 
@@ -431,7 +435,11 @@ export default function ProjectDetailPage() {
       <section className="mt-8">
         <h2 className="mb-3 text-lg font-semibold text-slate-900">Discussions</h2>
         <div className="mb-3 flex flex-col gap-2">
-          {(messagesData?.messages.length ?? 0) === 0 ? (
+          {messagesError ? (
+            <Alert variant="destructive" role="alert">
+              <AlertDescription>Impossible de charger les messages.</AlertDescription>
+            </Alert>
+          ) : (messagesData?.messages.length ?? 0) === 0 ? (
             <p className="text-sm text-slate-500">Aucun message pour l&apos;instant.</p>
           ) : (
             messagesData?.messages.map((m) => (

@@ -103,6 +103,11 @@ export default function NotesPage() {
   }
 
   async function onSaveEdit(noteId: string) {
+    setMutationError(null);
+    if (!editTitle.trim() || !editBody.trim()) {
+      setMutationError('Le titre et le contenu sont obligatoires.');
+      return;
+    }
     try {
       await api(`/api/organizations/${organizationId}/notes/${noteId}`, {
         method: 'PATCH',
