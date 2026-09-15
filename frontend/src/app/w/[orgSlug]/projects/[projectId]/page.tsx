@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { WorkspaceNotFound } from '@/components/workspace-not-found';
+import { MentionInput, renderMessageBody } from '@/components/mention-input';
 
 interface Task {
   id: string;
@@ -45,6 +46,13 @@ interface DocumentRow {
   createdAt: string;
   uploadedById: string;
   fileUpload: { filename: string; mimeType: string; sizeBytes: number };
+}
+
+interface ProjectMessageRow {
+  id: string;
+  body: string;
+  authorId: string;
+  createdAt: string;
 }
 
 const STATUS_LABEL: Record<Task['status'], string> = {
@@ -118,6 +126,17 @@ export default function ProjectDetailPage() {
   // only one of those actions can be in flight at a time, and surfacing both
   // kinds of failure through a single Alert keeps the section simple.
   const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const messagesPath = organizationId
+    ? `/api/organizations/${organizationId}/messages?projectId=${params.projectId}`
+    : '';
+  const { data: messagesData, refresh: refreshMessages } = useApi<{
+    messages: ProjectMessageRow[];
+  }>(messagesPath, { skip: !organizationId });
+
+  const [messageDraft, setMessageDraft] = useState('');
+  const [messageSendError, setMessageSendError] = useState<string | null>(null);
+  const [sendingMessage, setSendingMessage] = useState(false);
 
   async function onCreateTask(e: FormEvent) {
     e.preventDefault();
@@ -205,6 +224,24 @@ export default function ProjectDetailPage() {
       } else {
         setUploadError('Erreur réseau.');
       }
+    }
+  }
+
+  async function onSendMessage() {
+    setMessageSendError(null);
+    if (!messageDraft.trim()) return;
+    setSendingMessage(true);
+    try {
+      await api(`/api/organizations/${organizationId}/messages`, {
+        method: 'POST',
+        body: { body: messageDraft.trim(), projectId: params.projectId },
+      });
+      setMessageDraft('');
+      await refreshMessages();
+    } catch (err) {
+      setMessageSendError(err instanceof ApiError ? err.message : 'Erreur réseau.');
+    } finally {
+      setSendingMessage(false);
     }
   }
 
@@ -389,6 +426,45 @@ export default function ProjectDetailPage() {
             ))}
           </div>
         )}
+      </section>
+
+      <section className="mt-8">
+        <h2 className="mb-3 text-lg font-semibold text-slate-900">Discussions</h2>
+        <div className="mb-3 flex flex-col gap-2">
+          {(messagesData?.messages.length ?? 0) === 0 ? (
+            <p className="text-sm text-slate-500">Aucun message pour l&apos;instant.</p>
+          ) : (
+            messagesData?.messages.map((m) => (
+              <div key={m.id} className="rounded-lg border border-slate-200 px-3 py-2">
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-900">
+                    {memberLabel(members, m.authorId)}
+                  </span>
+                  <span className="text-xs text-slate-400">
+                    {new Date(m.createdAt).toLocaleString('fr-FR')}
+                  </span>
+                </div>
+                <p className="whitespace-pre-wrap text-sm text-slate-700">
+                  {renderMessageBody(m.body)}
+                </p>
+              </div>
+            ))
+          )}
+        </div>
+        <MentionInput
+          value={messageDraft}
+          onChange={setMessageDraft}
+          members={members}
+          placeholder="Discuter de ce projet… (@ pour mentionner)"
+        />
+        {messageSendError && (
+          <Alert variant="destructive" role="alert" className="mt-2">
+            <AlertDescription>{messageSendError}</AlertDescription>
+          </Alert>
+        )}
+        <Button type="button" onClick={onSendMessage} disabled={sendingMessage} className="mt-2">
+          {sendingMessage ? 'Envoi…' : 'Envoyer'}
+        </Button>
       </section>
     </div>
   );
