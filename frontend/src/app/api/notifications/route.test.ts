@@ -183,6 +183,13 @@ describe('GET /api/notifications', () => {
     const res = await GET(makeGet('http://test/api/notifications'));
     expect(res.headers.get('x-request-id')).toBeTruthy();
   });
+
+  it('filters by type when a type query param is given', async () => {
+    prismaMock.notification.findMany.mockResolvedValue([] as never);
+    await GET(makeGet('http://test/api/notifications?type=MENTION'));
+    const args = prismaMock.notification.findMany.mock.calls[0]?.[0];
+    expect(args?.where?.type).toBe('MENTION');
+  });
 });
 
 describe('PATCH /api/notifications', () => {
