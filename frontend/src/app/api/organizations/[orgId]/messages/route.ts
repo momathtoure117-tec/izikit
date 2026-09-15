@@ -71,9 +71,9 @@ export async function POST(
 
     const mentions = extractMentionedUserIds(parsed.data.body);
     for (const mention of mentions) {
-      const stillMember = await isOrgMember(prisma, orgId, mention.userId);
-      if (!stillMember) continue;
       try {
+        const stillMember = await isOrgMember(prisma, orgId, mention.userId);
+        if (!stillMember) continue;
         await createNotification(
           prisma,
           mentionNotification(mention.userId, message.id, mention.name, orgId, message.projectId),
