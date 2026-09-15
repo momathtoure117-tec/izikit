@@ -13,9 +13,11 @@ import {
   ChevronDown,
   Plus,
   AlertCircle,
+  Bell,
 } from 'lucide-react';
 import { WorkspaceProvider, useWorkspace } from '@/contexts/WorkspaceContext';
 import { cn } from '@/lib/utils';
+import { useApi } from '@/lib/useApi';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 
@@ -39,6 +41,7 @@ function Sidebar() {
   const { slug, name, organizations, loading, notFound, error } = useWorkspace();
   const pathname = usePathname();
   const [switcherOpen, setSwitcherOpen] = useState(false);
+  const { data: notifCount } = useApi<{ count: number }>('/api/notifications/count');
 
   if (error) {
     return (
@@ -61,15 +64,27 @@ function Sidebar() {
 
   return (
     <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white">
-      <div className="relative border-b border-slate-200 p-4">
+      <div className="relative flex items-center justify-between border-b border-slate-200 p-4">
         <button
           type="button"
           onClick={() => setSwitcherOpen((o) => !o)}
-          className="flex w-full cursor-pointer items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm font-semibold text-slate-900 hover:bg-slate-50"
+          className="flex min-w-0 flex-1 cursor-pointer items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm font-semibold text-slate-900 hover:bg-slate-50"
         >
           <span className="truncate">{loading ? 'Chargement…' : name || 'Espace de travail'}</span>
           <ChevronDown className="h-4 w-4 shrink-0 text-slate-500" />
         </button>
+        <Link
+          href={`/w/${slug}/notifications`}
+          className="relative ml-2 shrink-0 rounded-lg p-1.5 text-slate-500 hover:bg-slate-50"
+          aria-label="Notifications"
+        >
+          <Bell className="h-4 w-4" />
+          {(notifCount?.count ?? 0) > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[9px] font-semibold text-white">
+              {notifCount!.count > 9 ? '9+' : notifCount!.count}
+            </span>
+          )}
+        </Link>
         {switcherOpen && (
           <div className="absolute left-4 right-4 z-10 mt-1 rounded-lg border border-slate-200 bg-white py-1 shadow-md">
             {organizations.map((org) => (
