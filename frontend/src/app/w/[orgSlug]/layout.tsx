@@ -14,6 +14,10 @@ import {
   Plus,
   AlertCircle,
   Bell,
+  MessageSquare,
+  StickyNote,
+  AtSign,
+  Activity,
 } from 'lucide-react';
 import { WorkspaceProvider, useWorkspace } from '@/contexts/WorkspaceContext';
 import { cn } from '@/lib/utils';
@@ -28,7 +32,7 @@ import { Button } from '@/components/ui/button';
 // pointing at the same page, this collapses them into one ("Mes tâches").
 // A future sub-project can reintroduce a separate all-tasks view backed by
 // its own route once that's actually needed.
-const NAV_ITEMS = [
+const WORKSPACE_NAV_ITEMS = [
   { label: 'Tableau de bord', href: 'dashboard', icon: LayoutDashboard },
   { label: 'Projets', href: 'projects', icon: FolderKanban },
   { label: 'Calendrier', href: 'calendar', icon: Calendar },
@@ -36,6 +40,38 @@ const NAV_ITEMS = [
   { label: 'Équipe', href: 'team', icon: Users },
   { label: 'Fichiers', href: 'files', icon: FileText },
 ];
+
+const COLLABORATION_NAV_ITEMS = [
+  { label: 'Messagerie', href: 'messages', icon: MessageSquare },
+  { label: 'Notes', href: 'notes', icon: StickyNote },
+  { label: 'Mentions', href: 'mentions', icon: AtSign },
+  { label: 'Activité récente', href: 'activity', icon: Activity },
+];
+
+interface NavItem {
+  label: string;
+  href: string;
+  icon: typeof LayoutDashboard;
+}
+
+function renderNavItem(item: NavItem, slug: string, pathname: string) {
+  const hrefPath = item.href.split('?')[0];
+  const isActive = pathname === `/w/${slug}/${hrefPath}`;
+  const Icon = item.icon;
+  return (
+    <Link
+      key={item.label}
+      href={`/w/${slug}/${item.href}`}
+      className={cn(
+        'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium',
+        isActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 hover:bg-slate-50',
+      )}
+    >
+      <Icon className="h-4 w-4" />
+      {item.label}
+    </Link>
+  );
+}
 
 function Sidebar() {
   const { slug, name, organizations, loading, notFound, error } = useWorkspace();
@@ -116,24 +152,11 @@ function Sidebar() {
         <p className="px-2 pt-1 pb-2 text-xs font-semibold tracking-wider text-slate-400 uppercase">
           Espace de travail
         </p>
-        {NAV_ITEMS.map((item) => {
-          const hrefPath = item.href.split('?')[0];
-          const isActive = pathname === `/w/${slug}/${hrefPath}`;
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.label}
-              href={`/w/${slug}/${item.href}`}
-              className={cn(
-                'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium',
-                isActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 hover:bg-slate-50',
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {item.label}
-            </Link>
-          );
-        })}
+        {WORKSPACE_NAV_ITEMS.map((item) => renderNavItem(item, slug, pathname))}
+        <p className="px-2 pt-4 pb-2 text-xs font-semibold tracking-wider text-slate-400 uppercase">
+          Collaboration
+        </p>
+        {COLLABORATION_NAV_ITEMS.map((item) => renderNavItem(item, slug, pathname))}
       </nav>
 
       {notFound && (
