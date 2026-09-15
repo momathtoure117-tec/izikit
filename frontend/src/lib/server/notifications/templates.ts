@@ -50,3 +50,25 @@ export function paymentReceived(
     dedupeKey: `payment-received:${orderId}`,
   };
 }
+
+/**
+ * Fired when a user is @mentioned in a Message. dedupeKey is deterministic
+ * per (message, mentioned user) pair so re-processing the same message never
+ * double-fires.
+ */
+export function mentionNotification(
+  mentionedUserId: string,
+  messageId: string,
+  authorName: string,
+  organizationId: string,
+  projectId: string | null,
+): CreateNotificationInput {
+  return {
+    userId: mentionedUserId,
+    type: 'MENTION',
+    title: 'Vous avez été mentionné',
+    body: `${authorName} vous a mentionné dans un message.`,
+    data: { messageId, organizationId, projectId },
+    dedupeKey: `mention:${messageId}:${mentionedUserId}`,
+  };
+}

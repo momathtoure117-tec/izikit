@@ -4,11 +4,17 @@ import { NextRequest } from 'next/server';
 
 vi.mock('@/lib/server/auth', () => ({ verifyCsrf: vi.fn(() => null) }));
 vi.mock('@/lib/server/middleware', () => ({ requireOrgRole: vi.fn() }));
+vi.mock('@/lib/server/organizations/guards', () => ({ isOrgMember: vi.fn() }));
+vi.mock('@/lib/server/notifications', () => ({ createNotification: vi.fn() }));
 
 import { requireOrgRole } from '@/lib/server/middleware';
+import { isOrgMember } from '@/lib/server/organizations/guards';
+import { createNotification } from '@/lib/server/notifications';
 import { POST, GET } from './route';
 
 const mockRequireOrgRole = vi.mocked(requireOrgRole);
+const mockIsOrgMember = vi.mocked(isOrgMember);
+const mockCreateNotification = vi.mocked(createNotification);
 const memberCtx = {
   user: { sub: 'u1', email: 'u1@test.local' },
   orgMember: { organizationId: 'org_1', userId: 'u1', role: 'MEMBER' as const },
@@ -40,6 +46,8 @@ function makeGet(query = ''): NextRequest {
 beforeEach(() => {
   vi.clearAllMocks();
   mockRequireOrgRole.mockResolvedValue(memberCtx);
+  mockIsOrgMember.mockResolvedValue(true);
+  mockCreateNotification.mockResolvedValue(null);
 });
 
 describe('POST /api/organizations/[orgId]/messages', () => {
@@ -130,5 +138,84 @@ describe('GET /api/organizations/[orgId]/messages', () => {
     expect(prismaMock.message.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { organizationId: 'org_1', projectId: PROJ_1 } }),
     );
+  });
+});
+
+describe('POST /api/organizations/[orgId]/messages — mentions', () => {
+  it('fires one notification per valid mentioned member', async () => {
+    prismaMock.message.create.mockResolvedValueOnce({
+      id: 'msg_1',
+      body: 'Salut @[Awa Diop](cku2y3z4a5b6c7d8e9f0g1h2), regarde ça',
+      authorId: 'u1',
+      projectId: null,
+      createdAt: new Date('2026-10-01T10:00:00Z'),
+    } as never);
+
+    await POST(
+      makePost({ body: 'Salut @[Awa Diop](cku2y3z4a5b6c7d8e9f0g1h2), regarde ça' }),
+      ctxWith('org_1'),
+    );
+
+    expect(mockIsOrgMember).toHaveBeenCalledWith(
+      expect.anything(),
+      'org_1',
+      'cku2y3z4a5b6c7d8e9f0g1h2',
+    );
+    expect(mockCreateNotification).toHaveBeenCalledTimes(1);
+    const [, input] = mockCreateNotification.mock.calls[0]!;
+    expect(input.userId).toBe('cku2y3z4a5b6c7d8e9f0g1h2');
+    expect(input.dedupeKey).toBe('mention:msg_1:cku2y3z4a5b6c7d8e9f0g1h2');
+  });
+
+  it('silently drops a mention for a user who is no longer a member', async () => {
+    mockIsOrgMember.mockResolvedValueOnce(false);
+    prismaMock.message.create.mockResolvedValueOnce({
+      id: 'msg_2',
+      body: 'Salut @[Ancien Membre](ckuoldmember00000000001)',
+      authorId: 'u1',
+      projectId: null,
+      createdAt: new Date('2026-10-01T10:00:00Z'),
+    } as never);
+
+    const res = await POST(
+      makePost({ body: 'Salut @[Ancien Membre](ckuoldmember00000000001)' }),
+      ctxWith('org_1'),
+    );
+
+    expect(res.status).toBe(201);
+    expect(mockCreateNotification).not.toHaveBeenCalled();
+  });
+
+  it('does not fail the message if createNotification throws unexpectedly', async () => {
+    mockCreateNotification.mockRejectedValueOnce(new Error('db blip'));
+    prismaMock.message.create.mockResolvedValueOnce({
+      id: 'msg_3',
+      body: 'Salut @[Awa Diop](cku2y3z4a5b6c7d8e9f0g1h2)',
+      authorId: 'u1',
+      projectId: null,
+      createdAt: new Date('2026-10-01T10:00:00Z'),
+    } as never);
+
+    const res = await POST(
+      makePost({ body: 'Salut @[Awa Diop](cku2y3z4a5b6c7d8e9f0g1h2)' }),
+      ctxWith('org_1'),
+    );
+
+    expect(res.status).toBe(201);
+  });
+
+  it('creates a message with no mention tokens without calling isOrgMember', async () => {
+    prismaMock.message.create.mockResolvedValueOnce({
+      id: 'msg_4',
+      body: 'Pas de mention ici',
+      authorId: 'u1',
+      projectId: null,
+      createdAt: new Date('2026-10-01T10:00:00Z'),
+    } as never);
+
+    await POST(makePost({ body: 'Pas de mention ici' }), ctxWith('org_1'));
+
+    expect(mockIsOrgMember).not.toHaveBeenCalled();
+    expect(mockCreateNotification).not.toHaveBeenCalled();
   });
 });
